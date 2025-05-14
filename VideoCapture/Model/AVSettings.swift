@@ -1,5 +1,5 @@
 //
-//  VideoParameters.swift
+//  AVSettings.swift
 //  VideoCapture
 //
 //  Created by Bhavik Goyal on 13/05/25.
