@@ -15,12 +15,12 @@ struct ContentView: View {
                     .tabItem {
                         Text("Sources")
                     }
-                
+
                 CompressionView()
                     .tabItem {
                         Text("Compression")
                     }
-                
+
                 FeedsView()
                     .tabItem {
                         Text("Feeds")

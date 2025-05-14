@@ -10,9 +10,7 @@ import SwiftUI
 struct FeedsView: View {
     @State var isShowingList: Bool = false
     @State var isShowingFeed: Bool = false
-    @State var rtpSelection: String = "UDP"
-    
-    let rpts: [String] = ["UDP", "TCP"]
+    @State var rtpSelection: RTP = .rtp
 
     var body: some View {
         VStack {
@@ -30,8 +28,8 @@ struct FeedsView: View {
                     SecureField("Password", text: .constant(""))
                         .textFieldStyle(.roundedBorder)
                     Picker("RTP", selection: $rtpSelection) {
-                        ForEach(rpts, id: \.self) {
-                            Text($0)
+                        ForEach(RTP.allCases, id: \.self) {
+                            Text($0.displayName)
                         }
                     }
                 }

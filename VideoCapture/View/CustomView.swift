@@ -12,7 +12,7 @@ struct LabelView<T: View>: View {
     let content: () -> T
 
     var body: some View {
-        HStack {
+        HStack(alignment: .top) {
             Text(label)
                 .frame(width: 100, alignment: .trailing)
             content()
