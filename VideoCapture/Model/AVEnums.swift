@@ -34,7 +34,7 @@ enum VideoCodec: String, Codable, CaseIterable {
 }
 
 enum FrameSize: String, Codable, CaseIterable {
-    case camera
+    case camera = ""
     case _160x120 = "160x120"
     case _176x144QCIF = "176x144"
     case _192x192 = "192x192"
@@ -76,7 +76,7 @@ enum FrameSize: String, Codable, CaseIterable {
 
     var value: String {
         switch self {
-        case .camera, .custom: ""
+        case .custom: ""
         default: rawValue
         }
     }

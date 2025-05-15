@@ -8,6 +8,14 @@
 import SwiftUI
 
 struct InspectorView: View {
+    @StateObject var settings: AVSettingViewModel
+    @StateObject var cameras: IPCameraViewModel
+    
+    init() {
+        self._settings = StateObject(wrappedValue: AVSettingViewModel())
+        self._cameras = StateObject(wrappedValue: IPCameraViewModel())
+    }
+
     var body: some View {
         VStack {
             TabView {
@@ -16,12 +24,12 @@ struct InspectorView: View {
                         Text("Sources")
                     }
 
-                CompressionView()
+                CompressionView(settings: settings)
                     .tabItem {
                         Text("Compression")
                     }
 
-                FeedsView()
+                FeedsView(cameras: cameras)
                     .tabItem {
                         Text("Feeds")
                     }

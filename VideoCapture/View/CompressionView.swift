@@ -12,18 +12,7 @@ struct CompressionView: View {
     @State var isShowingVideo: Bool = false
     @State var isShowingAudio: Bool = false
 
-    // to be replace with view model class
-    @State var videoCodec: VideoCodec = .h264
-    @State var scaling: VideoScalingMode = .resize
-    @State var frameSize: FrameSize = .camera
-    @State var profile: ProfileLevel = .none
-
-    @State var audioCodec: AudioCodec = .mpeg_4HighEfficiencyAAC
-    @State var sampleRate: SampleRate = .khz48000
-    @State var bitRateAudio: AudioBitrate = .kbs128
-    @State var bitRateMode: BiteRateMode = .perChannel
-    @State var channelCount: ChannelCount = ._2
-    @State var channelType: ChannelType = .default
+    @ObservedObject var settings: AVSettingViewModel
 
     var body: some View {
         VStack {
@@ -33,11 +22,11 @@ struct CompressionView: View {
             }
             CollapseButton(title: "Video", isExpanded: $isShowingVideo)
             if isShowingVideo {
-                VideoSettingView(videoCodec: $videoCodec, scaling: $scaling, frameSize: $frameSize, profile: $profile)
+                VideoSettingView(videoCodec: $settings.videoCodec, scaling: $settings.scalingMode, frameSize: $settings.frameSize, frameSize1: $settings.frameSize1, frameSize2: $settings.frameSize2, bitRate: $settings.videoBitRate, keyFrames: $settings.keyFrameInterval, profile: $settings.profile)
             }
             CollapseButton(title: "Audio", isExpanded: $isShowingAudio)
             if isShowingAudio {
-                AudioSettingView(audioCodec: $audioCodec, sampleRate: $sampleRate, bitRateAudio: $bitRateAudio, bitRateMode: $bitRateMode, channelCount: $channelCount, channelType: $channelType)
+                AudioSettingView(audioCodec: $settings.audioCodec, sampleRate: $settings.sampleRate, bitRateAudio: $settings.bitRate, bitRateMode: $settings.bitRateMode, channelCount: $settings.channels, channelType: $settings.channelType)
             }
             Spacer()
         }
@@ -48,6 +37,10 @@ struct VideoSettingView: View {
     @Binding var videoCodec: VideoCodec
     @Binding var scaling: VideoScalingMode
     @Binding var frameSize: FrameSize
+    @Binding var frameSize1: String
+    @Binding var frameSize2: String
+    @Binding var bitRate: String
+    @Binding var keyFrames: String
     @Binding var profile: ProfileLevel
 
     var body: some View {
@@ -60,7 +53,7 @@ struct VideoSettingView: View {
                 }
             }
             LabelView(label: "Frame Size") {
-                FrameSizeView(frameSize: $frameSize)
+                FrameSizeView(width: $frameSize1, height: $frameSize2, frameSize: $frameSize)
             }
             LabelView(label: "Scaling") {
                 Picker("Scaling", selection: $scaling) {
@@ -70,10 +63,10 @@ struct VideoSettingView: View {
                 }
             }
             LabelView(label: "Bit Rate") {
-                BitRateView()
+                BitRateView(bitRate: $bitRate)
             }
             LabelView(label: "Key Frames") {
-                NumericInputField(title: "", text: .constant("25"))
+                NumericInputField(title: "", text: $keyFrames)
             }
             LabelView(label: "Profile") {
                 Picker("Profile", selection: $profile) {
@@ -121,8 +114,8 @@ struct AudioSettingView: View {
 }
 
 struct FrameSizeView: View {
-    @State var width: String = ""
-    @State var height: String = ""
+    @Binding var width: String
+    @Binding var height: String
     @Binding var frameSize: FrameSize
 
     var body: some View {
@@ -142,9 +135,11 @@ struct FrameSizeView: View {
 }
 
 struct BitRateView: View {
+    @Binding var bitRate: String
+
     var body: some View {
         HStack {
-            NumericInputField(title: "", text: .constant("1000"))
+            NumericInputField(title: "", text: $bitRate)
                 .multilineTextAlignment(.trailing)
             Text("kbps")
                 .frame(width: 100, alignment: .leading)

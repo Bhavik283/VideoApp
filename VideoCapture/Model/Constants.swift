@@ -22,7 +22,8 @@ let HD720 = AVSettings(
         bitRateMode: .perChannel,
         channels: ._2,
         channelType: .default
-    )
+    ),
+    allChanges: false
 )
 
 let HD1080 = AVSettings(
@@ -42,7 +43,8 @@ let HD1080 = AVSettings(
         bitRateMode: .perChannel,
         channels: ._2,
         channelType: .default
-    )
+    ),
+    allChanges: false
 )
 
 let K4 = AVSettings(
@@ -62,5 +64,6 @@ let K4 = AVSettings(
         bitRateMode: .perChannel,
         channels: ._2,
         channelType: .default
-    )
+    ),
+    allChanges: false
 )

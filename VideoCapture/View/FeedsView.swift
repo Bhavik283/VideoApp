@@ -10,7 +10,8 @@ import SwiftUI
 struct FeedsView: View {
     @State var isShowingList: Bool = false
     @State var isShowingFeed: Bool = false
-    @State var rtpSelection: RTP = .rtp
+
+    @ObservedObject var cameras: IPCameraViewModel
 
     var body: some View {
         VStack {
@@ -21,13 +22,13 @@ struct FeedsView: View {
             CollapseButton(title: "Feed", isExpanded: $isShowingFeed)
             if isShowingFeed {
                 Form {
-                    TextField("Feed Address", text: .constant(""))
+                    TextField("Feed Address", text: $cameras.url)
                         .textFieldStyle(.roundedBorder)
-                    TextField("Username", text: .constant(""))
+                    TextField("Username", text: $cameras.name)
                         .textFieldStyle(.roundedBorder)
-                    SecureField("Password", text: .constant(""))
+                    SecureField("Password", text: $cameras.password)
                         .textFieldStyle(.roundedBorder)
-                    Picker("RTP", selection: $rtpSelection) {
+                    Picker("RTP", selection: $cameras.rtp) {
                         ForEach(RTP.allCases, id: \.self) {
                             Text($0.displayName)
                         }
