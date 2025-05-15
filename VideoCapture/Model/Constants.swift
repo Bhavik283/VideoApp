@@ -11,8 +11,8 @@ let HD720 = AVSettings(
         codec: .h264,
         frameSize: FrameSize._1280x720HD.rawValue,
         scalingMode: nil,
-        bitRate: 5000,
-        keyFrameInterval: 25,
+        bitRate: "5000",
+        keyFrameInterval: "25",
         profile: nil
     ),
     audio: AudioSettings(
@@ -32,8 +32,8 @@ let HD1080 = AVSettings(
         codec: .h264,
         frameSize: FrameSize._1920x1080HD.rawValue,
         scalingMode: nil,
-        bitRate: 8000,
-        keyFrameInterval: 25,
+        bitRate: "8000",
+        keyFrameInterval: "25",
         profile: nil
     ),
     audio: AudioSettings(
@@ -53,8 +53,8 @@ let K4 = AVSettings(
         codec: .h264,
         frameSize: "3840x2160",
         scalingMode: nil,
-        bitRate: 35000,
-        keyFrameInterval: 25,
+        bitRate: "35000",
+        keyFrameInterval: "25",
         profile: nil
     ),
     audio: AudioSettings(

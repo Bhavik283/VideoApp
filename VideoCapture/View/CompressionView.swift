@@ -8,25 +8,54 @@
 import SwiftUI
 
 struct CompressionView: View {
-    @State var isShowingPresets: Bool = false
-    @State var isShowingVideo: Bool = false
-    @State var isShowingAudio: Bool = false
+    @State var isShowingPresets: Bool = true
+    @State var isShowingVideo: Bool = true
+    @State var isShowingAudio: Bool = true
 
     @ObservedObject var settings: AVSettingViewModel
+
+    var isDisabled: Bool {
+        if let active = settings.activeAVSetting, let index = settings.AVSettingData.firstIndex(of: active) {
+            return index < 3
+        }
+        return false
+    }
 
     var body: some View {
         VStack {
             CollapseButton(title: "Presets", isExpanded: $isShowingPresets)
             if isShowingPresets {
-                EditableListView()
+                EditableListView(
+                    items: $settings.AVSettingData,
+                    constantCount: 3,
+                    getName: { $0.name },
+                    setName: { original, newName in
+                        var copy = original
+                        copy.name = newName
+                        settings.updateName(id: original.id, to: newName)
+                        return copy
+                    },
+                    onAdd: {
+                        settings.createNewAVSettings()
+                    },
+                    onRemove: { index in
+                        settings.removeSettings(at: index)
+                    },
+                    onSelect: { index in
+                        settings.setActiveValue(at: index)
+                    }
+                )
             }
             CollapseButton(title: "Video", isExpanded: $isShowingVideo)
+            let disabled = isDisabled
             if isShowingVideo {
                 VideoSettingView(videoCodec: $settings.videoCodec, scaling: $settings.scalingMode, frameSize: $settings.frameSize, frameSize1: $settings.frameSize1, frameSize2: $settings.frameSize2, bitRate: $settings.videoBitRate, keyFrames: $settings.keyFrameInterval, profile: $settings.profile)
+                    .disabled(disabled)
             }
             CollapseButton(title: "Audio", isExpanded: $isShowingAudio)
             if isShowingAudio {
                 AudioSettingView(audioCodec: $settings.audioCodec, sampleRate: $settings.sampleRate, bitRateAudio: $settings.bitRate, bitRateMode: $settings.bitRateMode, channelCount: $settings.channels, channelType: $settings.channelType)
+                    .disabled(disabled)
             }
             Spacer()
         }

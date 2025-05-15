@@ -45,7 +45,7 @@ class AVSettingViewModel: ObservableObject {
     init() {
         let constantSettings = [HD720, HD1080, K4]
         let loadedSettings = StorageViewModel.shared.loadAVSettings()
-        AVSettingData = constantSettings + loadedSettings
+        AVSettingData = loadedSettings.isEmpty ? constantSettings : loadedSettings
     }
 
     // MARK: - Helpers
@@ -145,19 +145,16 @@ class AVSettingViewModel: ObservableObject {
             AVSettingData.append(newSetting)
             activeAVSetting = newSetting
         } else {
-            var newSetting = AVSettings(name: "new item \(AVSettingData.count)")
+            let newSetting = AVSettings(name: "new item \(AVSettingData.count)")
             AVSettingData.append(newSetting)
             activeAVSetting = newSetting
         }
     }
 
-    func removeCurrentSettings() {
-        guard let active = activeAVSetting else { return }
-
-        if let index = AVSettingData.firstIndex(where: { $0.id == active.id }) {
+    func removeSettings(at index: Int) {
+        if index >= 3 && index < AVSettingData.count {
             AVSettingData.remove(at: index)
 
-            // Select a fallback active setting
             if !AVSettingData.isEmpty {
                 activeAVSetting = AVSettingData.first
             } else {
@@ -165,9 +162,18 @@ class AVSettingViewModel: ObservableObject {
             }
         }
     }
+    
+    func setActiveValue(at index: Int?) {
+        if index == nil {
+            activeAVSetting = nil
+        } else if let index, index >= 0 && index < AVSettingData.count {
+            activeAVSetting = AVSettingData[index]
+        }
+    }
 
-    func updateName(at index: Int, to newName: String) {
-        guard index >= 3, index < AVSettingData.count else { return }
+    func updateName(id: UUID, to newName: String) {
+        guard let index = AVSettingData.firstIndex(where: { $0.id == id }) else { return }
+        if index < 3 { return }
 
         var updated = AVSettingData[index]
         updated.name = newName

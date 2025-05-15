@@ -8,7 +8,12 @@
 import Foundation
 
 class IPCameraViewModel: ObservableObject {
-    @Published var activeCamera: IPCamera?
+    @Published var activeCamera: IPCamera? {
+        didSet {
+            syncStateWithActiveCamera()
+        }
+    }
+
     @Published var cameraList: [IPCamera] = [] {
         didSet {
             StorageViewModel.shared.saveIPCameras(cameraList)
@@ -16,16 +21,48 @@ class IPCameraViewModel: ObservableObject {
     }
 
     // Input fields bound to UI
-    @Published var name: String = ""
-    @Published var url: String = ""
-    @Published var username: String = ""
-    @Published var password: String = ""
-    @Published var rtp: RTP = .rtp
-    @Published var sdpFile: String = ""
-    @Published var deinterfaceFeed: Bool = false
+    @Published var url: String = "" { didSet { if !isSyncing { updateActiveCamera() } } }
+    @Published var username: String = "" { didSet { if !isSyncing { updateActiveCamera() } } }
+    @Published var password: String = "" { didSet { if !isSyncing { updateActiveCamera() } } }
+    @Published var rtp: RTP = .rtp { didSet { if !isSyncing { updateActiveCamera() } } }
+    @Published var sdpFile: String = "" { didSet { if !isSyncing { updateActiveCamera() } } }
+    @Published var deinterfaceFeed: Bool = false { didSet { if !isSyncing { updateActiveCamera() } } }
 
     init() {
         cameraList = StorageViewModel.shared.loadIPCameras()
+    }
+
+    private var isSyncing: Bool = false
+
+    private func syncStateWithActiveCamera() {
+        guard let camera = activeCamera else { return }
+        isSyncing = true
+
+        url = camera.url
+        username = camera.username
+        password = camera.password
+        rtp = camera.rtp
+        sdpFile = camera.sdpFile ?? ""
+        deinterfaceFeed = camera.deinterfaceFeed
+
+        isSyncing = false
+    }
+
+    private func updateActiveCamera() {
+        guard !isSyncing, var camera = activeCamera else { return }
+        camera.url = url
+        camera.username = username
+        camera.password = password
+        camera.rtp = rtp
+        camera.sdpFile = sdpFile
+        camera.deinterfaceFeed = deinterfaceFeed
+
+        if activeCamera != camera {
+            activeCamera = camera
+            if let index = cameraList.firstIndex(where: { $0.id == camera.id }) {
+                cameraList[index] = camera
+            }
+        }
     }
 
     // MARK: - CRUD
@@ -36,17 +73,29 @@ class IPCameraViewModel: ObservableObject {
         activeCamera = newCamera
     }
 
-    func removeActiveCamera() {
-        guard let active = activeCamera else { return }
-        if let index = cameraList.firstIndex(of: active) {
+    func removeCamera(at index: Int) {
+        if index >= 0 && index < cameraList.count {
             cameraList.remove(at: index)
             activeCamera = nil
         }
     }
 
-    func updateCameraName(at index: Int, newName: String) -> Bool {
-        guard index >= 0, index < cameraList.count else { return false }
-        cameraList[index].name = newName
-        return true
+    func setActiveValue(at index: Int?) {
+        if index == nil {
+            activeCamera = nil
+        } else if let index, index >= 0 && index < cameraList.count {
+            activeCamera = cameraList[index]
+        }
+    }
+
+    func updateName(for id: UUID, to newName: String) {
+        guard let index = cameraList.firstIndex(where: { $0.id == id }) else { return }
+        var updated = cameraList[index]
+        updated.name = newName
+        cameraList[index] = updated
+
+        if activeCamera?.id == updated.id {
+            activeCamera = updated
+        }
     }
 }

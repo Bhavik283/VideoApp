@@ -8,22 +8,19 @@
 import SwiftUI
 
 struct AddRemoveButton: View {
-    @Binding var items: [String]
     @Binding var selectedIndex: Int?
     @Binding var editingIndex: Int?
+    var onAdd: () -> Void
+    var onRemove: () -> Void
 
     var body: some View {
         HStack {
             BorderedButton(icon: "plus") {
-                items.append("New Item \(items.count + 1)")
+                onAdd()
             }
 
             BorderedButton(icon: "minus") {
-                if let selected = selectedIndex, selected < items.count {
-                    items.remove(at: selected)
-                    selectedIndex = nil
-                    editingIndex = nil
-                }
+                onRemove()
             }
             Spacer()
         }
@@ -33,7 +30,7 @@ struct AddRemoveButton: View {
 struct BorderedButton: View {
     let icon: String
     let action: () -> Void
-    
+
     var body: some View {
         Button(action: action) {
             Image(systemName: icon)
@@ -42,7 +39,6 @@ struct BorderedButton: View {
         .buttonStyle(.borderless)
         .foregroundStyle(.primary)
         .overlay(Rectangle().stroke(Color.gray.opacity(0.5), lineWidth: 1))
-        
     }
 }
 

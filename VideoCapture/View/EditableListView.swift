@@ -7,26 +7,31 @@
 
 import SwiftUI
 
-struct EditableListView: View {
-    @State private var items = ["Item 1", "Item 2", "Item 3", "Item 4", "Item 5"]
+struct EditableListView<T: Identifiable>: View where T: Equatable {
+    @Binding var items: [T]
+    var constantCount: Int
+    var getName: (T) -> String
+    var setName: (T, String) -> T
+    var onAdd: () -> Void
+    var onRemove: (Int) -> Void
+    var onSelect: ((Int?) -> Void)? = nil
+
     @State private var selectedIndex: Int? = nil
     @State private var editingIndex: Int? = nil
-
-    func getTextBinding(index: Int) -> Binding<String> {
-        Binding(
-            get: { index < items.count ? items[index] : "" },
-            set: {
-                if index < items.count {
-                    items[index] = $0
-                }
-            }
-        )
-    }
 
     func editingBinding(index: Int) -> Binding<Bool> {
         Binding(
             get: { editingIndex == index },
-            set: { if !$0 { commitEdit() } }
+            set: { _ in }
+        )
+    }
+
+    func getTextBinding(index: Int) -> Binding<String> {
+        Binding(
+            get: { getName(items[index]) },
+            set: { newValue in
+                items[index] = setName(items[index], newValue)
+            }
         )
     }
 
@@ -34,11 +39,11 @@ struct EditableListView: View {
         VStack(spacing: 5) {
             List(items.indices, id: \.self, selection: $selectedIndex) { index in
                 Group {
-                    if editingIndex == index {
+                    if editingIndex == index, index >= constantCount {
                         InputField(isFocused: editingBinding(index: index), text: getTextBinding(index: index))
                             .frame(height: 20)
                     } else {
-                        Text(items[index])
+                        Text(getName(items[index]))
                             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
                             .contentShape(Rectangle())
                             .onTapGesture {
@@ -46,10 +51,9 @@ struct EditableListView: View {
                                     editingIndex = index
                                 } else {
                                     selectedIndex = index
-                                    if editingIndex != index {
-                                        editingIndex = nil
-                                    }
+                                    editingIndex = nil
                                 }
+                                onSelect?(selectedIndex)
                             }
                     }
                 }
@@ -60,14 +64,20 @@ struct EditableListView: View {
             .listStyle(.bordered)
             .frame(maxHeight: 100)
 
-            AddRemoveButton(items: $items, selectedIndex: $selectedIndex, editingIndex: $editingIndex)
-                .padding(.leading, 5)
-        }
-    }
-
-    private func commitEdit() {
-        if let index = editingIndex, index < items.count {
-            editingIndex = nil
+            AddRemoveButton(
+                selectedIndex: $selectedIndex,
+                editingIndex: $editingIndex,
+                onAdd: { onAdd() },
+                onRemove: {
+                    if let index = selectedIndex {
+                        onRemove(index)
+                        if index == editingIndex { editingIndex = nil }
+                        selectedIndex = nil
+                        onSelect?(nil)
+                    }
+                }
+            )
+            .padding(.leading, 5)
         }
     }
 }

@@ -11,6 +11,7 @@ struct InputField: View {
     @Binding var isFocused: Bool
     @Binding var text: String
     @FocusState private var internalFocus: Bool
+    var onCommit: (() -> Void)?
 
     init(isFocused: Binding<Bool>, text: Binding<String>) {
         self._text = text
@@ -18,15 +19,19 @@ struct InputField: View {
     }
 
     var body: some View {
-        TextField("", text: $text)
-            .focused($internalFocus)
-            .textFieldStyle(.plain)
-            .onAppear {
-                internalFocus = isFocused
+        TextField("", text: $text, onEditingChanged: { edit in
+            if !edit {
+                onCommit?()
             }
-            .onChange(of: internalFocus) { _, newValue in
-                isFocused = newValue
-            }
+        })
+        .focused($internalFocus)
+        .textFieldStyle(.plain)
+        .onAppear {
+            internalFocus = isFocused
+        }
+        .onChange(of: internalFocus) { _, newValue in
+            isFocused = newValue
+        }
     }
 }
 

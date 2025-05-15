@@ -8,23 +8,42 @@
 import SwiftUI
 
 struct FeedsView: View {
-    @State var isShowingList: Bool = false
-    @State var isShowingFeed: Bool = false
+    @State var isShowingList: Bool = true
+    @State var isShowingFeed: Bool = true
 
     @ObservedObject var cameras: IPCameraViewModel
-
+    
     var body: some View {
         VStack {
             CollapseButton(title: "Feed List", isExpanded: $isShowingList)
             if isShowingList {
-                EditableListView()
+                EditableListView(
+                    items: $cameras.cameraList,
+                    constantCount: 0,
+                    getName: { $0.name },
+                    setName: { original, newName in
+                        var copy = original
+                        copy.name = newName
+                        cameras.updateName(for: original.id, to: newName)
+                        return copy
+                    },
+                    onAdd: {
+                        cameras.addNewCamera()
+                    },
+                    onRemove: { index in
+                        cameras.removeCamera(at: index)
+                    },
+                    onSelect: { index in
+                        cameras.setActiveValue(at: index)
+                    }
+                )
             }
             CollapseButton(title: "Feed", isExpanded: $isShowingFeed)
             if isShowingFeed {
                 Form {
                     TextField("Feed Address", text: $cameras.url)
                         .textFieldStyle(.roundedBorder)
-                    TextField("Username", text: $cameras.name)
+                    TextField("Username", text: $cameras.username)
                         .textFieldStyle(.roundedBorder)
                     SecureField("Password", text: $cameras.password)
                         .textFieldStyle(.roundedBorder)
