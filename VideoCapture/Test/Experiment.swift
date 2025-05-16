@@ -6,6 +6,8 @@
 //
 
 import Foundation
+import AVFoundation
+import SwiftUI
 
 func shell(command: String) -> String? {
     let commonBrewPaths = [
@@ -688,9 +690,6 @@ func shell(command: String) -> String? {
 //    }
 // }
 
-import AVFoundation
-import SwiftUI
-
 struct ContentViewTest: View {
     @StateObject private var cameraManager = CameraManager()
     @State private var isRecording = false
@@ -1117,7 +1116,7 @@ class CameraManager: ObservableObject {
                 "-strict", "experimental",
                 path
             ]
-        } else if !ipCameraURL.isEmpty, let mic = microphone {
+        } else if !ipCameraURL.isEmpty {
             // 🔹 IP CAMERA + MIC (2 separate inputs)
             // Get mic device index (you should fetch actual index if needed)
             let audioDeviceIndex = "1" // Adjust as necessary
@@ -1131,13 +1130,6 @@ class CameraManager: ObservableObject {
                 "-c:v", "copy", // or h264 if transcoding needed
                 "-c:a", "aac",
                 "-strict", "experimental",
-                path
-            ]
-        } else if !ipCameraURL.isEmpty {
-            // 🔹 IP CAMERA ONLY (no mic)
-            arguments += [
-                "-i", ipCameraURL,
-                "-c:v", "copy",
                 path
             ]
         } else {

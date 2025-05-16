@@ -15,8 +15,7 @@ struct ContentView: View {
 
     var body: some View {
         ZStack(alignment: .bottom) {
-            Color.black
-                .frame(width: 600, height: 500)
+            VideoPreview(viewModel: viewModel)
             ControlPanelView(devices: devices, viewModel: viewModel, settings: settings, cameras: cameras)
                 .padding(.bottom, 100)
         }

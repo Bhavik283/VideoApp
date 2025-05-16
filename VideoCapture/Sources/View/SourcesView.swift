@@ -13,18 +13,13 @@ struct SourcesView: View {
     @ObservedObject var settings: AVSettingViewModel
     @ObservedObject var cameras: IPCameraViewModel
 
-    @State private var selectedCameraID: String = ""
-    @State private var selectedMicID: String = ""
-    @State private var selectedSettingsID: UUID?
-    @State private var useIPFeed: Bool = false
-
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("Video Source").font(.headline)
 
             VStack(alignment: .leading) {
                 List {
-                    Picker("Camera", selection: $selectedCameraID) {
+                    Picker("Camera", selection: $viewModel.selectedCameraID) {
                         ForEach(devices.videoDevices, id: \.uniqueID) { camera in
                             Text(camera.localizedName).tag(camera.uniqueID)
                         }
@@ -33,20 +28,8 @@ struct SourcesView: View {
                     .pickerStyle(.radioGroup)
                     .labelsHidden()
                     .listRowSeparator(.hidden)
-                    .onAppear {
-                        if let defaultCamera = devices.videoDevices.first {
-                            selectedCameraID = defaultCamera.uniqueID
-                            viewModel.activeCamera = defaultCamera
-                        }
-                        if let defaultMic = devices.audioDevices.first {
-                            selectedMicID = defaultMic.uniqueID
-                            viewModel.activeMicrophone = defaultMic
-                        }
-                        selectedSettingsID = settings.AVSettingData.first?.id
-                        viewModel.selectedSettings = settings.AVSettingData.first
-                    }
-                    .onChange(of: selectedCameraID) { _, newID in
-                        useIPFeed = newID == "IP_FEED"
+                    .onChange(of: viewModel.selectedCameraID) { _, newID in
+                        viewModel.useIPFeed = newID == "IP_FEED"
                         viewModel.activeCamera = devices.videoDevices.first(where: { $0.uniqueID == newID })
                         viewModel.activeIPCameras = []
                     }
@@ -65,33 +48,33 @@ struct SourcesView: View {
                         }
                     }
                     .padding(.leading)
-                    .disabled(!useIPFeed)
+                    .disabled(!viewModel.useIPFeed)
                     .listRowSeparator(.hidden)
                 }
                 .frame(maxWidth: .infinity, maxHeight: 200)
             }
             .overlay(Rectangle().stroke(lineWidth: 1))
 
-            if !useIPFeed {
+            if !viewModel.useIPFeed {
                 LabelView(label: "Audio Input") {
-                    Picker("Microphone", selection: $selectedMicID) {
+                    Picker("Microphone", selection: $viewModel.selectedMicID) {
                         ForEach(devices.audioDevices, id: \.uniqueID) { mic in
                             Text(mic.localizedName).tag(mic.uniqueID)
                         }
                     }
-                    .onChange(of: selectedMicID) { _, newID in
+                    .onChange(of: viewModel.selectedMicID) { _, newID in
                         viewModel.activeMicrophone = devices.audioDevices.first(where: { $0.uniqueID == newID })
                     }
                 }
             }
 
             LabelView(label: "Settings") {
-                Picker("Settings", selection: $selectedSettingsID) {
+                Picker("Settings", selection: $viewModel.selectedSettingsID) {
                     ForEach(settings.AVSettingData) { setting in
                         Text(setting.name).tag(setting.id as UUID?)
                     }
                 }
-                .onChange(of: selectedSettingsID) { _, newID in
+                .onChange(of: viewModel.selectedSettingsID) { _, newID in
                     if let id = newID, let selected = settings.AVSettingData.first(where: { $0.id == id }) {
                         viewModel.selectedSettings = selected
                     }

@@ -15,10 +15,12 @@ struct VideoCaptureApp: App {
     @ObservedObject var cameras: IPCameraViewModel
     
     init() {
-        self.devices = AVViewModel()
-        self.settings = AVSettingViewModel()
+        let deviceVM = AVViewModel()
+        let settingVM = AVSettingViewModel()
+        self.devices = deviceVM
+        self.settings = settingVM
         self.cameras = IPCameraViewModel()
-        self.viewModel = MainViewModel()
+        self.viewModel = MainViewModel(activeCamera: deviceVM.videoDevices.first, activeMicrophone: deviceVM.audioDevices.first, selectedSettings: settingVM.AVSettingData.first)
     }
 
     var body: some Scene {
