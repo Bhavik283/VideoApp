@@ -9,15 +9,21 @@ import SwiftUI
 
 @main
 struct VideoCaptureApp: App {
-    @ObservedObject var deviceViewModel: AVViewModel
+    @ObservedObject var devices: AVViewModel
+    @ObservedObject var viewModel: MainViewModel
+    @ObservedObject var settings: AVSettingViewModel
+    @ObservedObject var cameras: IPCameraViewModel
     
     init() {
-        self.deviceViewModel = AVViewModel()
+        self.devices = AVViewModel()
+        self.settings = AVSettingViewModel()
+        self.cameras = IPCameraViewModel()
+        self.viewModel = MainViewModel()
     }
 
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            ContentView(devices: devices, viewModel: viewModel, settings: settings, cameras: cameras)
         }
     }
 }

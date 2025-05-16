@@ -67,3 +67,5 @@ let K4 = AVSettings(
     ),
     allChanges: false
 )
+
+let frameRates: [Int32] = Array(15 ... 30)

@@ -11,6 +11,11 @@ struct ControlPanelView: View {
     @State var time: String = "00:00:00"
     @State var isRecording: Bool = false
 
+    @ObservedObject var devices: AVViewModel
+    @ObservedObject var viewModel: MainViewModel
+    @ObservedObject var settings: AVSettingViewModel
+    @ObservedObject var cameras: IPCameraViewModel
+
     var body: some View {
         HStack {
             Text(time)
@@ -50,7 +55,7 @@ struct ControlPanelView: View {
             }
             .frame(width: 60)
             Button {
-                InspectorWindowManager.shared.showInspector(with: InspectorView())
+                InspectorWindowManager.shared.showInspector(with: InspectorView(devices: devices, viewModel: viewModel, settings: settings, cameras: cameras))
             } label: {
                 Image(systemName: "gear")
                     .resizable()
