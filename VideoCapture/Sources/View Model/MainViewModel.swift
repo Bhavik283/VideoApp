@@ -7,13 +7,13 @@
 
 import AppKit
 import AVFoundation
+import Combine
 import Foundation
 
 final class MainViewModel: ObservableObject {
     @Published var activeCamera: AVCaptureDevice?
     @Published var activeMicrophone: AVCaptureDevice?
     @Published var activeIPCameras: [IPCamera] = []
-    @Published var selectedSettings: AVSettings?
 
     @Published var frameRate: Int32 = 30
 
@@ -22,18 +22,28 @@ final class MainViewModel: ObservableObject {
     @Published var selectedSettingsID: UUID
     @Published var useIPFeed: Bool = false
     @Published var timers: [UUID: TimerModel] = [:]
+    @Published var isAVRecording: Bool = false
 
     private var avProcess: Process?
     let nilUUID = UUID()
     var session = AVCaptureSession()
+    private var lifecycleObserver = AppLifecycleObserver()
+    private var cancellables = Set<AnyCancellable>()
 
-    init(activeCamera: AVCaptureDevice? = nil, activeMicrophone: AVCaptureDevice? = nil, selectedSettings: AVSettings? = nil) {
+    init(activeCamera: AVCaptureDevice? = nil, activeMicrophone: AVCaptureDevice? = nil, selectedSettingsID: UUID? = nil) {
         self.activeCamera = activeCamera
         self.selectedCameraID = activeCamera?.uniqueID ?? ""
         self.activeMicrophone = activeMicrophone
         self.selectedMicID = activeMicrophone?.uniqueID ?? ""
-        self.selectedSettings = selectedSettings
-        self.selectedSettingsID = selectedSettings?.id ?? nilUUID
+        self.selectedSettingsID = selectedSettingsID ?? nilUUID
+
+        lifecycleObserver.onWillSleep = { [weak self] in
+            self?.handleSystemSleep()
+        }
+        lifecycleObserver.onDidWake = { [weak self] in
+            self?.handleSystemWake()
+        }
+        observeDeviceDisconnection()
     }
 
     func makeTime(id: UUID) -> String? {
@@ -52,12 +62,43 @@ final class MainViewModel: ObservableObject {
         activeCamera = nil
         activeMicrophone = nil
         activeIPCameras = []
-        selectedSettings = nil
+        selectedSettingsID = nilUUID
+    }
+
+    private func handleSystemSleep() {
+        stopAllRecordings()
+    }
+
+    private func handleSystemWake() {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+            self.session.startRunning()
+        }
+    }
+
+    private func observeDeviceDisconnection() {
+        NotificationCenter.default.publisher(for: AVCaptureDevice.wasDisconnectedNotification)
+            .sink { [weak self] notification in
+                guard let device = notification.object as? AVCaptureDevice else { return }
+                self?.handleDeviceDisconnected(device)
+            }
+            .store(in: &cancellables)
+    }
+
+    private func handleDeviceDisconnected(_ device: AVCaptureDevice) {
+        if device.uniqueID == activeCamera?.uniqueID || device.uniqueID == activeMicrophone?.uniqueID {
+            DispatchQueue.main.async { [weak self] in
+                guard let self = self else { return }
+                if let id = timers.first(where: { $0.value.isRecording })?.key {
+                    self.stopAVRecording(id: id)
+                    showFailureAlert(message: "\(device.localizedName) disconnected. Recording stopped.")
+                }
+            }
+        }
     }
 }
 
 extension MainViewModel {
-    func startAVRecording(devices: AVViewModel, id: UUID) {
+    func startAVRecording(devices: AVViewModel, settings: AVSettingViewModel, id: UUID) {
         timers[id]?.reset()
         guard let ffmpegPath = Bundle.main.path(forResource: "ffmpeg", ofType: nil) else {
             showFailureAlert(message: "FFmpeg not found")
@@ -85,6 +126,7 @@ extension MainViewModel {
                 "-framerate", "\(framerate)"
             ]
 
+            let selectedSettings = settings.AVSettingData.first(where: { $0.id == self.selectedSettingsID })
             // Video Frame Size
             if let frameSize = selectedSettings?.video.frameSize, !frameSize.isEmpty {
                 args.append("-video_size")
@@ -99,7 +141,7 @@ extension MainViewModel {
                 args.append(time)
             }
 
-            let settingArgument = self.applySettings(cameraIndex: "\(camIndex)", microphoneIndex: micIndex)
+            let settingArgument = self.applySettings(cameraIndex: "\(camIndex)", microphoneIndex: micIndex, setting: selectedSettings)
             args.append(contentsOf: settingArgument)
 
             args.append("-preset")
@@ -134,6 +176,7 @@ extension MainViewModel {
             self.avProcess = task
             task.launch()
             self.timers[id]?.start()
+            isAVRecording = true
         }
     }
 
@@ -141,6 +184,9 @@ extension MainViewModel {
         timers[id]?.stop()
         avProcess?.terminate()
         avProcess = nil
+        if isAVRecording {
+            isAVRecording = false
+        }
     }
 
     func stopAllRecordings() {
@@ -150,9 +196,9 @@ extension MainViewModel {
         session.stopRunning()
     }
 
-    func applySettings(cameraIndex: String, microphoneIndex: String) -> [String] {
+    func applySettings(cameraIndex: String, microphoneIndex: String, setting: AVSettings?) -> [String] {
         var arguments: [String] = []
-        guard let setting = selectedSettings else { return arguments }
+        guard let setting else { return arguments }
 
         // Video Settings
         if !cameraIndex.isEmpty {

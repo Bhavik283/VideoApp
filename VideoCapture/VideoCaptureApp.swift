@@ -22,7 +22,7 @@ struct VideoCaptureApp: App {
         devices = deviceVM
         settings = settingVM
         cameras = IPCameraViewModel()
-        viewModel = MainViewModel(activeCamera: deviceVM.videoDevices.first, activeMicrophone: deviceVM.audioDevices.first, selectedSettings: settingVM.AVSettingData.first)
+        viewModel = MainViewModel(activeCamera: deviceVM.videoDevices.first, activeMicrophone: deviceVM.audioDevices.first, selectedSettingsID: settingVM.AVSettingData.first?.id)
     }
 
     var body: some Scene {

@@ -65,7 +65,7 @@ struct ControlPanelView: View {
         .opacity(opacity)
         .onChange(of: timer.isRecording) { _, newValue in
             if newValue {
-                viewModel.startAVRecording(devices: devices, id: id)
+                viewModel.startAVRecording(devices: devices, settings: settings, id: id)
             } else {
                 viewModel.stopAVRecording(id: id)
             }
