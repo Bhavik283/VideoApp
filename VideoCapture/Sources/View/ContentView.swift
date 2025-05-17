@@ -12,12 +12,20 @@ struct ContentView: View {
     @ObservedObject var viewModel: MainViewModel
     @ObservedObject var settings: AVSettingViewModel
     @ObservedObject var cameras: IPCameraViewModel
+    
+    @State private var id = UUID()
 
     var body: some View {
         ZStack(alignment: .bottom) {
             VideoPreview(viewModel: viewModel)
-            ControlPanelView(devices: devices, viewModel: viewModel, settings: settings, cameras: cameras)
-                .padding(.bottom, 100)
+            ControlPanelView(
+                id: id,
+                devices: devices,
+                viewModel: viewModel,
+                settings: settings,
+                cameras: cameras
+            )
+            .padding(.bottom, 100)
         }
         .navigationTitle("Capture")
     }

@@ -12,13 +12,12 @@ struct VideoPreview: NSViewRepresentable {
     @ObservedObject var viewModel: MainViewModel
 
     class Coordinator {
-        var session = AVCaptureSession()
         var previewLayer = AVCaptureVideoPreviewLayer()
     }
 
     func makeCoordinator() -> Coordinator {
         let coordinator = Coordinator()
-        coordinator.previewLayer = AVCaptureVideoPreviewLayer(session: coordinator.session)
+        coordinator.previewLayer = AVCaptureVideoPreviewLayer(session: viewModel.session)
         coordinator.previewLayer.videoGravity = .resizeAspect
         return coordinator
     }
@@ -30,14 +29,14 @@ struct VideoPreview: NSViewRepresentable {
         context.coordinator.previewLayer.autoresizingMask = [.layerWidthSizable, .layerHeightSizable]
         nsView.layer?.addSublayer(context.coordinator.previewLayer)
 
-        updateSession(session: context.coordinator.session)
-        context.coordinator.session.startRunning()
+        updateSession(session: viewModel.session)
+        viewModel.session.startRunning()
 
         return nsView
     }
 
     func updateNSView(_ nsView: NSView, context: Context) {
-        updateSession(session: context.coordinator.session)
+        updateSession(session: viewModel.session)
     }
 
     private func updateSession(session: AVCaptureSession) {

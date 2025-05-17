@@ -66,3 +66,21 @@ struct CollapseButton: View {
         .buttonStyle(.plain)
     }
 }
+
+struct IconButton: View {
+    let icon: String
+    let color: Color
+    let action: () -> Void
+    
+    var body: some View {
+        Button {
+            action()
+        } label: {
+            Image(systemName: icon)
+                .resizable()
+                .foregroundStyle(color)
+                .frame(width: 20, height: 20)
+        }
+        .buttonStyle(.plain)
+    }
+}

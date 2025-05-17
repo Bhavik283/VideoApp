@@ -16,17 +16,16 @@ final class MainViewModel: ObservableObject {
     @Published var selectedSettings: AVSettings?
 
     @Published var frameRate: Int32 = 30
-    @Published var hr: String = ""
-    @Published var min: String = ""
-    @Published var sec: String = ""
 
     @Published var selectedCameraID: String
     @Published var selectedMicID: String
     @Published var selectedSettingsID: UUID
     @Published var useIPFeed: Bool = false
+    @Published var timers: [UUID: TimerModel] = [:]
 
     private var avProcess: Process?
     let nilUUID = UUID()
+    var session = AVCaptureSession()
 
     init(activeCamera: AVCaptureDevice? = nil, activeMicrophone: AVCaptureDevice? = nil, selectedSettings: AVSettings? = nil) {
         self.activeCamera = activeCamera
@@ -37,11 +36,15 @@ final class MainViewModel: ObservableObject {
         self.selectedSettingsID = selectedSettings?.id ?? nilUUID
     }
 
-    func makeTime() -> String? {
-        guard !hr.isEmpty || !min.isEmpty || !sec.isEmpty else { return nil }
-        let hour = hr.isEmpty ? "00" : hr
-        let minutes = min.isEmpty ? "00" : min
-        let seconds = sec.isEmpty ? "00" : sec
+    func makeTime(id: UUID) -> String? {
+        guard let timer = timers[id] else { return nil }
+        guard !timer.hrValue.isEmpty || !timer.minValue.isEmpty || !timer.secValue.isEmpty else { return nil }
+        if Int(timer.hrValue) == 0 && Int(timer.minValue) == 0 && Int(timer.secValue) == 0 {
+            return nil
+        }
+        let hour = timer.hrValue.isEmpty ? "00" : timer.hrValue
+        let minutes = timer.minValue.isEmpty ? "00" : timer.minValue
+        let seconds = timer.secValue.isEmpty ? "00" : timer.secValue
         return "\(hour):\(minutes):\(seconds)"
     }
 
@@ -50,14 +53,12 @@ final class MainViewModel: ObservableObject {
         activeMicrophone = nil
         activeIPCameras = []
         selectedSettings = nil
-        hr = ""
-        min = ""
-        sec = ""
     }
 }
 
 extension MainViewModel {
-    func startAVRecording(devices: AVViewModel) {
+    func startAVRecording(devices: AVViewModel, id: UUID) {
+        
         stopAVRecording()
         guard let ffmpegPath = Bundle.main.path(forResource: "ffmpeg", ofType: nil) else {
             showFailureAlert(message: "FFmpeg not found")
@@ -78,14 +79,13 @@ extension MainViewModel {
 
             let input = micIndex.isEmpty ? "\(camIndex)" : "\(camIndex):\(micIndex)"
 
-
             var args = [
                 "-f", "avfoundation",
                 "-fflags", "nobuffer",
                 "-flags", "low_delay",
                 "-framerate", "\(framerate)"
             ]
-            
+
             // Video Frame Size
             if let frameSize = selectedSettings?.video.frameSize, !frameSize.isEmpty {
                 args.append("-video_size")
@@ -94,6 +94,11 @@ extension MainViewModel {
 
             args.append("-i")
             args.append(input)
+
+            if let time = makeTime(id: id) {
+                args.append("-t")
+                args.append(time)
+            }
 
             let settingArgument = self.applySettings(cameraIndex: "\(camIndex)", microphoneIndex: micIndex)
             args.append(contentsOf: settingArgument)
@@ -135,6 +140,11 @@ extension MainViewModel {
     func stopAVRecording() {
         avProcess?.terminate()
         avProcess = nil
+    }
+    
+    func stopAllRecordings() {
+        stopAVRecording()
+        session.stopRunning()
     }
 
     func applySettings(cameraIndex: String, microphoneIndex: String) -> [String] {

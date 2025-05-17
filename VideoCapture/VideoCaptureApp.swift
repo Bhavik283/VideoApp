@@ -9,23 +9,32 @@ import SwiftUI
 
 @main
 struct VideoCaptureApp: App {
+    @Environment(\.scenePhase) private var scenePhase
+
     @ObservedObject var devices: AVViewModel
     @ObservedObject var viewModel: MainViewModel
     @ObservedObject var settings: AVSettingViewModel
     @ObservedObject var cameras: IPCameraViewModel
-    
+
     init() {
         let deviceVM = AVViewModel()
         let settingVM = AVSettingViewModel()
-        self.devices = deviceVM
-        self.settings = settingVM
-        self.cameras = IPCameraViewModel()
-        self.viewModel = MainViewModel(activeCamera: deviceVM.videoDevices.first, activeMicrophone: deviceVM.audioDevices.first, selectedSettings: settingVM.AVSettingData.first)
+        devices = deviceVM
+        settings = settingVM
+        cameras = IPCameraViewModel()
+        viewModel = MainViewModel(activeCamera: deviceVM.videoDevices.first, activeMicrophone: deviceVM.audioDevices.first, selectedSettings: settingVM.AVSettingData.first)
     }
 
     var body: some Scene {
         WindowGroup {
             ContentView(devices: devices, viewModel: viewModel, settings: settings, cameras: cameras)
+        }
+        .onChange(of: scenePhase) { _, newPhase in
+            if newPhase == .background {
+                viewModel.stopAllRecordings()
+            } else if newPhase == .inactive {
+                print(1)
+            }
         }
     }
 }
