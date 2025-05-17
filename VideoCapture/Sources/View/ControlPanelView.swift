@@ -8,9 +8,8 @@
 import SwiftUI
 
 struct ControlPanelView: View {
-    @State var isRecording: Bool = false
-    @State var opacity: Double = 0.2
     @State var showingTimerField: Bool = false
+    @State var opacity: Double = 0.2
 
     @ObservedObject var devices: AVViewModel
     @ObservedObject var viewModel: MainViewModel
@@ -32,13 +31,17 @@ struct ControlPanelView: View {
     var body: some View {
         HStack {
             Text(timer.timeText)
-                .padding(.trailing, 20)
+            IconButton(icon: "arrow.clockwise", color: Color.white) {
+                timer.reset()
+            }
+            .disabled(timer.isRecording)
+            .padding(.trailing, 20)
             HStack {
                 IconButton(
-                    icon: isRecording ? "square.fill" : "record.circle.fill",
+                    icon: timer.isRecording ? "square.fill" : "record.circle.fill",
                     color: Color.red,
                     action: {
-                        isRecording.toggle()
+                        timer.isRecording.toggle()
                     }
                 )
             }
@@ -47,8 +50,10 @@ struct ControlPanelView: View {
                 InspectorWindowManager.shared.showInspector(with: InspectorView(devices: devices, viewModel: viewModel, settings: settings, cameras: cameras))
             }
             .padding(.leading, 20)
+            .padding(.trailing, 10)
             if showingTimerField {
                 TimerTextField(hr: timer.hrBinding, min: timer.minBinding, sec: timer.secBinding)
+                    .disabled(timer.isRecording)
             }
             IconButton(icon: "clock.fill", color: Color.white) {
                 showingTimerField.toggle()
@@ -58,21 +63,20 @@ struct ControlPanelView: View {
         .background(Color.gray)
         .clipShape(RoundedRectangle(cornerRadius: 4))
         .opacity(opacity)
-        .onChange(of: isRecording) { _, newValue in
+        .onChange(of: timer.isRecording) { _, newValue in
             if newValue {
                 viewModel.startAVRecording(devices: devices, id: id)
-                timer.start()
             } else {
-                viewModel.stopAVRecording()
-                timer.stop()
+                viewModel.stopAVRecording(id: id)
             }
         }
         .onAppear {
-            if viewModel.timers[id] == nil {
+            if viewModel.timers[id] !== timer {
                 viewModel.timers[id] = timer
             }
         }
         .onDisappear {
+            timer.stop()
             viewModel.timers[id] = nil
         }
         .onHover { hover in

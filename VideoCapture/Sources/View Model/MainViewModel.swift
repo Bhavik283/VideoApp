@@ -58,8 +58,7 @@ final class MainViewModel: ObservableObject {
 
 extension MainViewModel {
     func startAVRecording(devices: AVViewModel, id: UUID) {
-        
-        stopAVRecording()
+        timers[id]?.reset()
         guard let ffmpegPath = Bundle.main.path(forResource: "ffmpeg", ofType: nil) else {
             showFailureAlert(message: "FFmpeg not found")
             return
@@ -124,26 +123,30 @@ extension MainViewModel {
                     .components(separatedBy: .newlines)
                     .filter { $0.lowercased().contains("error") }
 
-                guard !errorLines.isEmpty else { return }
-
                 DispatchQueue.main.async {
-                    self?.stopAVRecording()
-                    showFailureAlert(message: "FFmpeg failed to save or start the recording, please check the console for more information.")
+                    self?.stopAVRecording(id: id)
+                    if !errorLines.isEmpty {
+                        showFailureAlert(message: "FFmpeg failed to save or start the recording, please check the console for more information.")
+                    }
                 }
             }
 
             self.avProcess = task
             task.launch()
+            self.timers[id]?.start()
         }
     }
 
-    func stopAVRecording() {
+    func stopAVRecording(id: UUID) {
+        timers[id]?.stop()
         avProcess?.terminate()
         avProcess = nil
     }
-    
+
     func stopAllRecordings() {
-        stopAVRecording()
+        for (id, _) in timers {
+            stopAVRecording(id: id)
+        }
         session.stopRunning()
     }
 

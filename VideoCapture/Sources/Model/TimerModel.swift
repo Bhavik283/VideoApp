@@ -10,6 +10,7 @@ import SwiftUI
 
 class TimerModel: ObservableObject {
     @Published var timeText: String = "00:00:00"
+    @Published var isRecording: Bool = false
 
     var hrValue: String = "00"
     var minValue: String = "00"
@@ -24,6 +25,9 @@ class TimerModel: ObservableObject {
     
     // Start the timer (increment counter every second)
     func start() {
+        if !isRecording {
+            isRecording = true
+        }
         cancellable?.cancel()
         cancellable = Timer.publish(every: 1, on: .main, in: .common)
             .autoconnect()
@@ -34,12 +38,14 @@ class TimerModel: ObservableObject {
     }
 
     func stop() {
+        if isRecording {
+            isRecording = false
+        }
         cancellable?.cancel()
         cancellable = nil
     }
-    
+
     func reset() {
-        stop()
         counterSeconds = 0
         updateTimeText()
     }
