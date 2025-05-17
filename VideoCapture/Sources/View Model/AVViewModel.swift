@@ -55,11 +55,13 @@ final class AVViewModel: ObservableObject {
             .store(in: &observers)
     }
 
-    func indexForVideoDevice(_ device: AVCaptureDevice) -> Int? {
+    func indexForVideoDevice(_ device: AVCaptureDevice?) -> Int? {
+        guard let device else { return nil }
         return videoDeviceIndexMap[device.uniqueID]
     }
 
-    func indexForAudioDevice(_ device: AVCaptureDevice) -> Int? {
+    func indexForAudioDevice(_ device: AVCaptureDevice?) -> Int? {
+        guard let device else { return nil }
         return audioDeviceIndexMap[device.uniqueID]
     }
 }

@@ -19,7 +19,7 @@ struct VideoPreview: NSViewRepresentable {
     func makeCoordinator() -> Coordinator {
         let coordinator = Coordinator()
         coordinator.previewLayer = AVCaptureVideoPreviewLayer(session: coordinator.session)
-        coordinator.previewLayer.videoGravity = .resizeAspectFill
+        coordinator.previewLayer.videoGravity = .resizeAspect
         return coordinator
     }
 
@@ -47,7 +47,6 @@ struct VideoPreview: NSViewRepresentable {
         if let camera = viewModel.activeCamera, let videoInput = try? AVCaptureDeviceInput(device: camera), session.canAddInput(videoInput) {
             session.addInput(videoInput)
 
-            let format = camera.activeFormat
             configureCameraFrameRate(camera: camera, targetFPS: viewModel.frameRate)
         }
 
