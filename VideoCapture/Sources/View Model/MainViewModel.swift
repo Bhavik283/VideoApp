@@ -22,10 +22,11 @@ final class MainViewModel: ObservableObject {
 
     @Published var selectedCameraID: String
     @Published var selectedMicID: String
-    @Published var selectedSettingsID: UUID?
+    @Published var selectedSettingsID: UUID
     @Published var useIPFeed: Bool = false
 
     private var avProcess: Process?
+    let nilUUID = UUID()
 
     init(activeCamera: AVCaptureDevice? = nil, activeMicrophone: AVCaptureDevice? = nil, selectedSettings: AVSettings? = nil) {
         self.activeCamera = activeCamera
@@ -33,7 +34,7 @@ final class MainViewModel: ObservableObject {
         self.activeMicrophone = activeMicrophone
         self.selectedMicID = activeMicrophone?.uniqueID ?? ""
         self.selectedSettings = selectedSettings
-        self.selectedSettingsID = selectedSettings?.id
+        self.selectedSettingsID = selectedSettings?.id ?? nilUUID
     }
 
     func makeTime() -> String? {

@@ -13,6 +13,19 @@ struct SourcesView: View {
     @ObservedObject var settings: AVSettingViewModel
     @ObservedObject var cameras: IPCameraViewModel
 
+    func toggleBinding(ipCamera: IPCamera) -> Binding<Bool> {
+        Binding(
+            get: { viewModel.activeIPCameras.contains(ipCamera) },
+            set: { isOn in
+                if isOn {
+                    viewModel.activeIPCameras.append(ipCamera)
+                } else {
+                    viewModel.activeIPCameras.removeAll { $0.id == ipCamera.id }
+                }
+            }
+        )
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("Video Source").font(.headline)
@@ -32,19 +45,11 @@ struct SourcesView: View {
                         viewModel.useIPFeed = newID == "IP_FEED"
                         viewModel.activeCamera = devices.videoDevices.first(where: { $0.uniqueID == newID })
                         viewModel.activeIPCameras = []
+                        viewModel.selectedSettingsID = settings.AVSettingData.first?.id ?? viewModel.nilUUID
                     }
                     VStack(alignment: .leading) {
                         ForEach(cameras.cameraList) { ipCamera in
-                            Toggle(ipCamera.name, isOn: Binding(
-                                get: { viewModel.activeIPCameras.contains(ipCamera) },
-                                set: { isOn in
-                                    if isOn {
-                                        viewModel.activeIPCameras.append(ipCamera)
-                                    } else {
-                                        viewModel.activeIPCameras.removeAll { $0.id == ipCamera.id }
-                                    }
-                                }
-                            ))
+                            Toggle(ipCamera.name, isOn: toggleBinding(ipCamera: ipCamera))
                         }
                     }
                     .padding(.leading)
@@ -70,12 +75,17 @@ struct SourcesView: View {
 
             LabelView(label: "Settings") {
                 Picker("Settings", selection: $viewModel.selectedSettingsID) {
+                    if viewModel.useIPFeed {
+                        Text("No Presets").tag(viewModel.nilUUID as UUID)
+                    }
                     ForEach(settings.AVSettingData) { setting in
-                        Text(setting.name).tag(setting.id as UUID?)
+                        Text(setting.name).tag(setting.id as UUID)
                     }
                 }
                 .onChange(of: viewModel.selectedSettingsID) { _, newID in
-                    if let id = newID, let selected = settings.AVSettingData.first(where: { $0.id == id }) {
+                    if newID == viewModel.nilUUID {
+                        viewModel.selectedSettings = nil
+                    } else if let selected = settings.AVSettingData.first(where: { $0.id == newID }) {
                         viewModel.selectedSettings = selected
                     }
                 }

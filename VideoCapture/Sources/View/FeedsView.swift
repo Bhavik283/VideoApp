@@ -12,7 +12,7 @@ struct FeedsView: View {
     @State var isShowingFeed: Bool = true
 
     @ObservedObject var cameras: IPCameraViewModel
-    
+
     var body: some View {
         VStack {
             CollapseButton(title: "Feed List", isExpanded: $isShowingList)
@@ -40,22 +40,50 @@ struct FeedsView: View {
             }
             CollapseButton(title: "Feed", isExpanded: $isShowingFeed)
             if isShowingFeed {
-                Form {
+                LabelView(label: "Feed Address") {
                     TextField("Feed Address", text: $cameras.url)
                         .textFieldStyle(.roundedBorder)
+                }
+                LabelView(label: "Username") {
                     TextField("Username", text: $cameras.username)
                         .textFieldStyle(.roundedBorder)
+                }
+                LabelView(label: "Password") {
                     SecureField("Password", text: $cameras.password)
                         .textFieldStyle(.roundedBorder)
+                }
+                LabelView(label: "RTP") {
                     Picker("RTP", selection: $cameras.rtp) {
                         ForEach(RTP.allCases, id: \.self) {
                             Text($0.displayName)
                         }
                     }
                 }
-                .padding()
+                LabelView(label: "SDP") {
+                    SDPView(path: $cameras.sdpFile)
+                }
+                Toggle(isOn: $cameras.deinterfaceFeed) {
+                    Text("DeInteraface Feed")
+                }
             }
             Spacer()
+        }
+    }
+}
+
+struct SDPView: View {
+    @Binding var path: String
+
+    var body: some View {
+        HStack {
+            TextField("SDP", text: $path)
+                .textFieldStyle(.roundedBorder)
+            Button("Choose") {
+                pickSDPFile { url in
+                    path = url?.path ?? ""
+                }
+            }
+            .buttonStyle(.borderedProminent)
         }
     }
 }
