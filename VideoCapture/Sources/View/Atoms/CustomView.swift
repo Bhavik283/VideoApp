@@ -19,5 +19,6 @@ struct LabelView<T: View>: View {
                 .labelsHidden()
         }
         .padding(.horizontal)
+        .padding(.vertical, 0)
     }
 }

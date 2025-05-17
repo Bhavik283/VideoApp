@@ -48,15 +48,7 @@ struct VideoPreview: NSViewRepresentable {
             session.addInput(videoInput)
 
             let format = camera.activeFormat
-            for range in format.videoSupportedFrameRateRanges {
-                if range.maxFrameRate >= Double(viewModel.frameRate) {
-                    try? camera.lockForConfiguration()
-                    camera.activeVideoMinFrameDuration = CMTimeMake(value: 1, timescale: viewModel.frameRate)
-                    camera.activeVideoMaxFrameDuration = CMTimeMake(value: 1, timescale: viewModel.frameRate)
-                    camera.unlockForConfiguration()
-                    break
-                }
-            }
+            configureCameraFrameRate(camera: camera, targetFPS: viewModel.frameRate)
         }
 
         if let mic = viewModel.activeMicrophone, let audioInput = try? AVCaptureDeviceInput(device: mic), session.canAddInput(audioInput) {
@@ -64,5 +56,34 @@ struct VideoPreview: NSViewRepresentable {
         }
 
         session.commitConfiguration()
+    }
+
+    private func configureCameraFrameRate(camera: AVCaptureDevice, targetFPS: Int32) {
+        do {
+            try camera.lockForConfiguration()
+
+            let supportedRanges = camera.activeFormat.videoSupportedFrameRateRanges
+            let isSupported = supportedRanges.contains { range in
+                Double(targetFPS) >= range.minFrameRate && Double(targetFPS) <= range.maxFrameRate
+            }
+
+            if isSupported {
+                let duration = CMTimeMake(value: 1, timescale: targetFPS)
+                camera.activeVideoMinFrameDuration = duration
+                camera.activeVideoMaxFrameDuration = duration
+            } else {
+                let defaultFPS = Int32(supportedRanges.first?.minFrameRate ?? 30)
+                let duration = CMTimeMake(value: 1, timescale: defaultFPS)
+                camera.activeVideoMinFrameDuration = duration
+                camera.activeVideoMaxFrameDuration = duration
+
+                showFailureAlert(message: "Selected frame rate (\(targetFPS) fps) is not supported by the camera. Defaulted to \(defaultFPS) fps.")
+            }
+
+            camera.unlockForConfiguration()
+        } catch {
+            camera.unlockForConfiguration()
+            showFailureAlert(message: "Failed to configure camera frame rate: \(error.localizedDescription)")
+        }
     }
 }

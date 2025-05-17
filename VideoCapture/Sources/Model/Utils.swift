@@ -24,3 +24,12 @@ func pickSDPFile(completion: @escaping (URL?) -> Void) {
         completion(result == .OK ? panel.url : nil)
     }
 }
+
+func showFailureAlert(message: String) {
+    let alert = NSAlert()
+    alert.messageText = "Operation Failed"
+    alert.informativeText = message
+    alert.alertStyle = .warning
+    alert.addButton(withTitle: "OK")
+    alert.runModal()
+}

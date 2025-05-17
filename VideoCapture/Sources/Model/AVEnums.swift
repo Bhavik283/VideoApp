@@ -12,6 +12,7 @@ import Foundation
 
 enum VideoCodec: String, Codable, CaseIterable {
     case h264 = "libx264"
+    case h265 = "libx265"
     case proRes422
     case proRes4444
     case none = "copy"
@@ -19,6 +20,7 @@ enum VideoCodec: String, Codable, CaseIterable {
     var displayName: String {
         switch self {
         case .h264: "H264"
+        case .h265: "H265 (HEVC)"
         case .proRes422: "Apple Pro Res 422"
         case .proRes4444: "Apple Pro Res 4444"
         case .none: "No Compression"
@@ -27,7 +29,7 @@ enum VideoCodec: String, Codable, CaseIterable {
 
     var value: String {
         switch self {
-        case .h264, .none: rawValue
+        case .h264, .h265, .none: rawValue
         case .proRes422, .proRes4444: "prores_ks"
         }
     }

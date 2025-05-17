@@ -73,7 +73,7 @@ struct VideoSettingView: View {
     @Binding var profile: ProfileLevel
 
     var body: some View {
-        VStack {
+        VStack(spacing: 5) {
             LabelView(label: "Codec") {
                 Picker("Codec", selection: $videoCodec) {
                     ForEach(VideoCodec.allCases, id: \.self) {
@@ -117,7 +117,7 @@ struct AudioSettingView: View {
     @Binding var channelType: ChannelType
 
     var body: some View {
-        VStack {
+        VStack(spacing: 5) {
             LabelView(label: "Codec") {
                 Picker("Codec", selection: $audioCodec) {
                     ForEach(AudioCodec.allCases, id: \.self) {
