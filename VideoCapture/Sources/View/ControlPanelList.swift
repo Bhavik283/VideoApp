@@ -18,9 +18,17 @@ struct ControlPanelList: View {
             ScrollView {
                 ForEach(viewModel.activeIPCameras) { camera in
                     if let timer = viewModel.timers[camera.id] {
-                        Section(camera.name) {
+                        Section {
                             IPControlPanelView(id: camera.id, viewModel: viewModel, settings: settings, timer: timer, camera: camera)
+                        } header: {
+                            HStack {
+                                Text(camera.name)
+                                    .font(.title2)
+                                Spacer()
+                            }
+                            .padding(.horizontal)
                         }
+                        Divider().padding(EdgeInsets(top: 0, leading: 5, bottom: 0, trailing: 5))
                     }
                 }
             }
@@ -82,7 +90,7 @@ struct IPControlPanelView: View {
                 showingTimerField.toggle()
             }
         }
-        .padding(10)
+        .padding(EdgeInsets(top: 10, leading: 20, bottom: 10, trailing: 20))
         .background(Color.gray)
         .onChange(of: timer.isRecording) { _, newValue in
             if newValue {

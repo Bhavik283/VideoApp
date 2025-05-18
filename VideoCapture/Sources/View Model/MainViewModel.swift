@@ -425,6 +425,7 @@ extension MainViewModel {
         timers.removeValue(forKey: id)
         ffplayProcesses[id]?.terminate()
         ffplayProcesses.removeValue(forKey: id)
+        activeIPCameras.removeAll { $0.id == id }
     }
 
     func checkAudioStream(for camera: IPCamera, completion: @escaping (Bool) -> Void) {
@@ -445,7 +446,6 @@ extension MainViewModel {
             "-v", "error",
             "-timeout", "10000000",
             "-rw_timeout", "10000000",
-            "-stimeout", "10000000",
             "-select_streams", "a",
             "-show_entries", "stream=codec_type",
             "-of", "default=noprint_wrappers=1:nokey=1",
@@ -462,6 +462,8 @@ extension MainViewModel {
             let data = pipe.fileHandleForReading.readDataToEndOfFile()
             let output = String(decoding: data, as: UTF8.self)
             let hasAudio = output.contains("audio")
+            print(output)
+            print("audio: \(hasAudio)")
             DispatchQueue.main.async {
                 completion(hasAudio)
             }
