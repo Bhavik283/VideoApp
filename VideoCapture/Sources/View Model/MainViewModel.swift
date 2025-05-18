@@ -104,7 +104,7 @@ final class MainViewModel: ObservableObject {
     }
 
     private func handleDeviceDisconnected(_ device: AVCaptureDevice) {
-        if device.uniqueID == activeCamera?.uniqueID || device.uniqueID == activeMicrophone?.uniqueID {
+        if device.uniqueID == activeCamera?.uniqueID || device.uniqueID == activeMicrophone?.uniqueID, avTimer != nil {
             DispatchQueue.main.async { [weak self] in
                 guard let self = self else { return }
                 if avTimer != nil {
@@ -135,11 +135,13 @@ extension MainViewModel {
     func startAVRecording(devices: AVViewModel, settings: AVSettingViewModel) {
         avTimer?.reset()
         guard let ffmpegPath = Bundle.main.path(forResource: "ffmpeg", ofType: nil) else {
+            avTimer?.isRecording = false
             showFailureAlert(message: "FFmpeg not found")
             return
         }
 
         guard let camIndex = devices.indexForVideoDevice(activeCamera) else {
+            avTimer?.isRecording = false
             showFailureAlert(message: "Selected Camera not found")
             return
         }
@@ -290,6 +292,7 @@ extension MainViewModel {
         } else {
             args += ["-i", url]
         }
+        print(args)
 
         process.arguments = args
 
@@ -299,19 +302,25 @@ extension MainViewModel {
         process.standardError = pipe
 
         // On termination, stop timer + cleanup
-        process.terminationHandler = { [weak self] _ in
+        process.terminationHandler = { [weak self] process in
             let data = pipe.fileHandleForReading.readDataToEndOfFile()
-            guard let output = String(data: data, encoding: .utf8) else { return }
-            print(output)
+            let output = String(data: data, encoding: .utf8) ?? ""
 
-            let errorLines = output
-                .components(separatedBy: .newlines)
-                .filter { $0.lowercased().contains("error") }
+            let knownFailureIndicators = ["invalid data", "no such file", "connection refused", "not found"]
+            let lowercasedOutput = output.lowercased()
+
+            let matchedIndicator = knownFailureIndicators.first(where: {
+                lowercasedOutput.contains($0)
+            })
+            print(output)
 
             DispatchQueue.main.async {
                 self?.closeFFplayWindow(id: id)
-                if !errorLines.isEmpty {
-                    showFailureAlert(message: "FFplay exited with an error, please check the console for more information.")
+
+                if let reason = matchedIndicator {
+                    showFailureAlert(message: "FFplay failed: \(reason.capitalized). See console.")
+                } else if process.terminationStatus != 0 {
+                    showFailureAlert(message: "FFplay exited with status \(process.terminationStatus). See console.")
                 }
             }
         }
@@ -432,7 +441,18 @@ extension MainViewModel {
 
         let process = Process()
         process.launchPath = ffprobePath
-        process.arguments = ["-v", "error", "-select_streams", "a", "-show_entries", "stream=codec_type", "-of", "default=noprint_wrappers=1:nokey=1", url]
+        let args = [
+            "-v", "error",
+            "-timeout", "10000000",
+            "-rw_timeout", "10000000",
+            "-stimeout", "10000000",
+            "-select_streams", "a",
+            "-show_entries", "stream=codec_type",
+            "-of", "default=noprint_wrappers=1:nokey=1",
+            url
+        ]
+        print(args)
+        process.arguments = args
 
         let pipe = Pipe()
         process.standardOutput = pipe
