@@ -350,7 +350,7 @@ extension MainViewModel {
                 args.append(frameSize)
             }
 
-            args += applySettings(setting: selectedSettings)
+            args += applySettings(setting: selectedSettings, hasAudio: timers[id]?.hasAudio ?? false)
 
             if let time = makeTime(id: id) {
                 args.append("-t")
@@ -401,5 +401,37 @@ extension MainViewModel {
         timers.removeValue(forKey: id)
         ffplayProcesses[id]?.terminate()
         ffplayProcesses.removeValue(forKey: id)
+    }
+
+    func checkAudioStream(for camera: IPCamera, completion: @escaping (Bool) -> Void) {
+        guard let ffprobePath = Bundle.main.path(forResource: "ffprobe", ofType: nil) else {
+            print("ffprobe not found")
+            completion(false)
+            return
+        }
+
+        var url = camera.url
+        if !camera.username.isEmpty, !camera.password.isEmpty {
+            url = url.replacingOccurrences(of: "://", with: "://\(camera.username):\(camera.password)@")
+        }
+
+        let process = Process()
+        process.launchPath = ffprobePath
+        process.arguments = ["-v", "error", "-select_streams", "a", "-show_entries", "stream=codec_type", "-of", "default=noprint_wrappers=1:nokey=1", url]
+
+        let pipe = Pipe()
+        process.standardOutput = pipe
+        process.standardError = pipe
+
+        process.terminationHandler = { _ in
+            let data = pipe.fileHandleForReading.readDataToEndOfFile()
+            let output = String(decoding: data, as: UTF8.self)
+            let hasAudio = output.contains("audio")
+            DispatchQueue.main.async {
+                completion(hasAudio)
+            }
+        }
+
+        process.launch()
     }
 }

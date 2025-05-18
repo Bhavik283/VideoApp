@@ -46,7 +46,9 @@ struct SourcesView: View {
                             viewModel.useIPFeed = newID == "IP_FEED"
                             viewModel.activeCamera = devices.videoDevices.first(where: { $0.uniqueID == newID })
                             viewModel.activeIPCameras = []
-                            viewModel.selectedSettingsID = settings.AVSettingData.first?.id ?? viewModel.nilUUID
+                            if viewModel.selectedSettingsID == viewModel.nilUUID && newID != "IP_FEED" {
+                                viewModel.selectedSettingsID = settings.AVSettingData.first?.id ?? HD720.id
+                            }
                         }
                         VStack(alignment: .leading) {
                             ForEach(cameras.cameraList) { ipCamera in
@@ -92,6 +94,7 @@ struct SourcesView: View {
                         }
                     }
                 }
+                .disabled(viewModel.useIPFeed)
                 Spacer()
             }
             .disabled(viewModel.isAVRecording)

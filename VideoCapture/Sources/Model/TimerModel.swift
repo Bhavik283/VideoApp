@@ -15,14 +15,15 @@ class TimerModel: ObservableObject {
     var hrValue: String = "00"
     var minValue: String = "00"
     var secValue: String = "00"
-    
+    var hasAudio: Bool = false
+
     private var cancellable: AnyCancellable?
     private var counterSeconds: Int = 0
-    
+
     init() {
         updateTimeText()
     }
-    
+
     // Start the timer (increment counter every second)
     func start() {
         if !isRecording {
@@ -49,16 +50,16 @@ class TimerModel: ObservableObject {
         counterSeconds = 0
         updateTimeText()
     }
-    
+
     private func updateTimeText() {
         let h = counterSeconds / 3600
         let m = (counterSeconds % 3600) / 60
         let s = counterSeconds % 60
         timeText = String(format: "%02d:%02d:%02d", h, m, s)
     }
-    
+
     // MARK: - Bindings for hr/min/sec as String
-    
+
     var hrBinding: Binding<String> {
         Binding<String>(
             get: { [weak self] in self?.hrValue ?? "00" },
@@ -67,7 +68,7 @@ class TimerModel: ObservableObject {
             }
         )
     }
-    
+
     var minBinding: Binding<String> {
         Binding<String>(
             get: { [weak self] in self?.minValue ?? "00" },
@@ -76,7 +77,7 @@ class TimerModel: ObservableObject {
             }
         )
     }
-    
+
     var secBinding: Binding<String> {
         Binding<String>(
             get: { [weak self] in self?.secValue ?? "00" },

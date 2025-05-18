@@ -57,7 +57,7 @@ struct ControlPanelView: View {
                 showingTimerField.toggle()
             }
         }
-        .padding(20)
+        .padding(EdgeInsets(top: 10, leading: 20, bottom: 10, trailing: 20))
         .background(Color.gray)
         .clipShape(RoundedRectangle(cornerRadius: 4))
         .opacity(opacity)
