@@ -94,3 +94,150 @@ func audioFilterForChannelType(_ type: ChannelType, channelCount: String) -> Str
         return nil
     }
 }
+
+func applySettings(cameraIndex: String, microphoneIndex: String, setting: AVSettings?) -> [String] {
+    var arguments: [String] = []
+    guard let setting else { return arguments }
+
+    // Video Settings
+    if !cameraIndex.isEmpty {
+        // Video Codec
+        let codec = setting.video.codec
+        arguments.append("-vcodec")
+        arguments.append(codec.value)
+
+        // Video Scaling Mode
+        if let scale = setting.video.scalingMode?.rawValue, !scale.isEmpty {
+            arguments.append("-vf")
+            arguments.append(scale)
+        }
+
+        // Video Bit Rate
+        let bitRate = setting.video.bitRate
+        if !bitRate.isEmpty, Int(bitRate) != nil {
+            arguments.append("-b:v")
+            arguments.append("\(bitRate)k")
+        }
+
+        // Video Key Frame Interval
+        let keyInterval = setting.video.keyFrameInterval
+        if !keyInterval.isEmpty, Int(keyInterval) != nil {
+            arguments.append("-g")
+            arguments.append(keyInterval)
+        }
+
+        // Video Profile (only for h264 or h265)
+        if let profile = setting.video.profile, profile != .none {
+            if codec == .h264 || codec == .h265 {
+                arguments.append("-profile:v")
+                arguments.append(profile.value)
+                arguments.append("-level")
+                arguments.append(profile.levelValue)
+            }
+        }
+    }
+
+    // Audio Settings
+    if !microphoneIndex.isEmpty {
+        // Audio Codec
+        let codec = setting.audio.codec
+        arguments.append("-acodec")
+        arguments.append(codec.rawValue)
+
+        // For Linear PCM codec (pcm_s16le)
+        if codec == .linearPCM {
+            arguments.append("-f")
+            arguments.append("s16le") // 16-bit signed little-endian
+
+            if let isBigEndian = setting.audio.isBigEndian, isBigEndian {
+                arguments.append("-format_flags")
+                arguments.append("+bigendian")
+            }
+
+            if let isFloat = setting.audio.isFloat, isFloat {
+                arguments.append("-format_flags")
+                arguments.append("+float")
+            }
+        }
+
+        // Audio Sample Rate
+        let sampleRate = setting.audio.sampleRate.rawValue
+        arguments.append("-ar")
+        arguments.append(sampleRate)
+
+        // Audio Bit Rate
+        let bitRate = setting.audio.bitRate.rawValue
+        arguments.append("-b:a")
+        arguments.append(bitRate)
+
+        // Special handling for AAC codecs
+        if codec == .mpeg_4HighEfficiencyAAC {
+            switch setting.audio.bitRateMode {
+            case .perChannel:
+                // Constant Bitrate mode - no extra flag needed, bitrate already set
+                break
+            case .allChannels:
+                arguments.append("-vbr")
+                arguments.append("4") // Common VBR quality level for libfdk_aac
+            }
+        } else if codec == .mpeg_4LowComplexAAC {
+            arguments.append("-strict")
+            arguments.append("-2") // Enable experimental AAC encoder
+        }
+
+        // Audio Channel Count
+        let channelCount = setting.audio.channels.rawValue
+        arguments.append("-ac")
+        arguments.append(channelCount)
+
+        // Audio Channel Type - pan filter for stereo downmixing
+        if let panFilter = audioFilterForChannelType(setting.audio.channelType, channelCount: channelCount) {
+            arguments.append("-af")
+            arguments.append(panFilter)
+        }
+    }
+
+    return arguments
+}
+
+func applySettings(setting: AVSettings?) -> [String] {
+    var arguments: [String] = []
+    guard let setting else { return arguments }
+
+    // Video Codec
+    let codec = setting.video.codec
+    arguments.append("-vcodec")
+    arguments.append(codec.value)
+
+    // Video Scaling Mode
+    if let scale = setting.video.scalingMode?.rawValue, !scale.isEmpty {
+        arguments.append("-vf")
+        arguments.append(scale)
+    }
+
+    // Video Bit Rate
+    let bitRate = setting.video.bitRate
+    if !bitRate.isEmpty, Int(bitRate) != nil {
+        arguments.append("-b:v")
+        arguments.append("\(bitRate)k")
+    }
+
+    // Video Key Frame Interval
+    let keyInterval = setting.video.keyFrameInterval
+    if !keyInterval.isEmpty, Int(keyInterval) != nil {
+        arguments.append("-g")
+        arguments.append(keyInterval)
+    }
+
+    // Video Profile (only for h264 or h265)
+    if let profile = setting.video.profile, profile != .none {
+        if codec == .h264 || codec == .h265 {
+            arguments.append("-profile:v")
+            arguments.append(profile.value)
+            arguments.append("-level")
+            arguments.append(profile.levelValue)
+        }
+    }
+
+    return arguments
+}

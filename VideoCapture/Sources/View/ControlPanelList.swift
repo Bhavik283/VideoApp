@@ -1,29 +1,39 @@
 //
-//  ControlPanelView.swift
+//  ControlPanelList.swift
 //  VideoCapture
 //
-//  Created by Bhavik Goyal on 15/05/25.
+//  Created by Bhavik Goyal on 18/05/25.
 //
 
 import SwiftUI
 
-struct ControlPanelView: View {
-    @State var showingTimerField: Bool = false
-    @State var opacity: Double = 0.2
-
+struct ControlPanelList: View {
     @ObservedObject var devices: AVViewModel
     @ObservedObject var viewModel: MainViewModel
     @ObservedObject var settings: AVSettingViewModel
     @ObservedObject var cameras: IPCameraViewModel
 
-    @StateObject private var timer: TimerModel
+    var body: some View {
+        Text("ControlPanelList")
+    }
+}
 
-    init(devices: AVViewModel, viewModel: MainViewModel, settings: AVSettingViewModel, cameras: IPCameraViewModel) {
-        _timer = StateObject(wrappedValue: TimerModel())
-        self.devices = devices
+struct IPControlPanelView: View {
+    @State var showingTimerField: Bool = false
+
+    @ObservedObject var viewModel: MainViewModel
+    @ObservedObject var settings: AVSettingViewModel
+    @ObservedObject private var timer: TimerModel
+    let camera: IPCamera
+
+    let id: UUID
+
+    init(id: UUID, viewModel: MainViewModel, settings: AVSettingViewModel, timer: TimerModel, camera: IPCamera) {
+        self.id = id
+        self.timer = timer
         self.viewModel = viewModel
         self.settings = settings
-        self.cameras = cameras
+        self.camera = camera
     }
 
     var body: some View {
@@ -44,11 +54,6 @@ struct ControlPanelView: View {
                 )
             }
             .frame(width: 40)
-            IconButton(icon: "gear", color: Color.white) {
-                InspectorWindowManager.shared.showInspector(with: InspectorView(devices: devices, viewModel: viewModel, settings: settings, cameras: cameras))
-            }
-            .padding(.leading, 20)
-            .padding(.trailing, 10)
             if showingTimerField {
                 TimerTextField(hr: timer.hrBinding, min: timer.minBinding, sec: timer.secBinding)
                     .disabled(timer.isRecording)
@@ -60,27 +65,11 @@ struct ControlPanelView: View {
         .padding(20)
         .background(Color.gray)
         .clipShape(RoundedRectangle(cornerRadius: 4))
-        .opacity(opacity)
         .onChange(of: timer.isRecording) { _, newValue in
             if newValue {
-                viewModel.startAVRecording(devices: devices, settings: settings)
+                viewModel.startIPRecording(id: id, settings: settings, camera: camera)
             } else {
-                viewModel.stopAVRecording()
-            }
-        }
-        .onAppear {
-            if viewModel.avTimer !== timer {
-                viewModel.avTimer = timer
-            }
-        }
-        .onDisappear {
-            timer.stop()
-        }
-        .onHover { hover in
-            if hover {
-                opacity = 1.0
-            } else {
-                opacity = 0.2
+                viewModel.stopIPRecording(id: id)
             }
         }
     }

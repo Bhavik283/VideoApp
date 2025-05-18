@@ -77,7 +77,7 @@ struct SourcesView: View {
                 LabelView(label: "Settings") {
                     Picker("Settings", selection: $viewModel.selectedSettingsID) {
                         if viewModel.useIPFeed {
-                            Text("No Presets").tag(viewModel.nilUUID as UUID)
+                            Text("From Source").tag(viewModel.nilUUID as UUID)
                         }
                         ForEach(settings.AVSettingData) { setting in
                             Text(setting.name).tag(setting.id as UUID)
