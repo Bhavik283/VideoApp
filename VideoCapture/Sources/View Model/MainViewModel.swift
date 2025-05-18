@@ -132,7 +132,10 @@ extension MainViewModel {
         let micIndex = devices.indexForAudioDevice(activeMicrophone).map { "\($0)" } ?? ""
 
         showRecordingSavePanel { [weak self] url in
-            guard let self, let url else { return }
+            guard let self, let url else {
+                self?.avTimer?.isRecording = false
+                return
+            }
 
             let framerate = self.frameRate
 
@@ -310,7 +313,10 @@ extension MainViewModel {
         }
 
         showRecordingSavePanel { [weak self] url in
-            guard let self, let url else { return }
+            guard let self, let url else {
+                self?.timers[id]?.isRecording = false
+                return
+            }
 
             var streamURL = camera.url
             if !camera.username.isEmpty, !camera.password.isEmpty {
