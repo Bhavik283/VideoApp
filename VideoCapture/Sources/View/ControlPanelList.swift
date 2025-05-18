@@ -15,9 +15,17 @@ struct ControlPanelList: View {
 
     var body: some View {
         VStack {
-            Text("ControlPanelList")
+            ScrollView {
+                ForEach(viewModel.activeIPCameras) { camera in
+                    if let timer = viewModel.timers[camera.id] {
+                        Section(camera.name) {
+                            IPControlPanelView(id: camera.id, viewModel: viewModel, settings: settings, timer: timer, camera: camera)
+                        }
+                    }
+                }
+            }
         }
-        .frame(width: 300)
+        .frame(width: 400)
         .toolbar {
             ToolbarItem {
                 Button("", systemImage: "gear") {
@@ -54,7 +62,7 @@ struct IPControlPanelView: View {
                 timer.reset()
             }
             .disabled(timer.isRecording)
-            .padding(.trailing, 20)
+            Spacer()
             HStack {
                 IconButton(
                     icon: timer.isRecording ? "square.fill" : "record.circle.fill",
@@ -64,18 +72,18 @@ struct IPControlPanelView: View {
                     }
                 )
             }
-            .frame(width: 40)
+            Spacer()
             if showingTimerField {
                 TimerTextField(hr: timer.hrBinding, min: timer.minBinding, sec: timer.secBinding)
                     .disabled(timer.isRecording)
+                    .padding(.trailing, 10)
             }
             IconButton(icon: "clock.fill", color: Color.white) {
                 showingTimerField.toggle()
             }
         }
-        .padding(20)
+        .padding(10)
         .background(Color.gray)
-        .clipShape(RoundedRectangle(cornerRadius: 4))
         .onChange(of: timer.isRecording) { _, newValue in
             if newValue {
                 viewModel.startIPRecording(id: id, settings: settings, camera: camera)

@@ -19,8 +19,14 @@ struct SourcesView: View {
             set: { isOn in
                 if isOn {
                     viewModel.activeIPCameras.append(ipCamera)
+                    let id = ipCamera.id
+                    viewModel.checkAudioStream(for: ipCamera) { hasAudio in
+                        viewModel.timers[id]?.hasAudio = hasAudio
+                        viewModel.openIPFFplayWindow(camera: ipCamera, id: id)
+                    }
                 } else {
                     viewModel.activeIPCameras.removeAll { $0.id == ipCamera.id }
+                    viewModel.closeFFplayWindow(id: ipCamera.id)
                 }
             }
         )
