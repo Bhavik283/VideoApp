@@ -13,7 +13,7 @@ import Foundation
 final class MainViewModel: ObservableObject {
     @Published var activeCamera: AVCaptureDevice?
     @Published var activeMicrophone: AVCaptureDevice?
-    @Published var activeIPCameras: [IPCamera] = []
+    @Published var activeIPCameras: [IPCamera] = [] { didSet { syncTimersWithCameras() } }
 
     @Published var frameRate: Int32 = 30
 
@@ -111,6 +111,21 @@ final class MainViewModel: ObservableObject {
                     self.stopAVRecording()
                     showFailureAlert(message: "\(device.localizedName) disconnected. Recording stopped.")
                 }
+            }
+        }
+    }
+
+    private func syncTimersWithCameras() {
+        for camera in activeIPCameras {
+            if timers[camera.id] == nil {
+                timers[camera.id] = TimerModel()
+            }
+        }
+
+        let activeIDs = Set(activeIPCameras.map { $0.id })
+        for timerID in timers.keys {
+            if !activeIDs.contains(timerID) {
+                timers.removeValue(forKey: timerID)
             }
         }
     }

@@ -34,6 +34,13 @@ struct InspectorView: View {
             .tabViewStyle(.grouped)
             .padding(.top, 5)
         }
+        .toolbar {
+            ToolbarItem {
+                Button("", systemImage: "list.bullet.rectangle") {
+                    WindowManager.shared.showController(with: ControlPanelList(devices: devices, viewModel: viewModel, settings: settings, cameras: cameras))
+                }
+            }
+        }
         .navigationTitle("Inspector")
     }
 }

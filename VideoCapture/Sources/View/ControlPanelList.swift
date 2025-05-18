@@ -14,7 +14,18 @@ struct ControlPanelList: View {
     @ObservedObject var cameras: IPCameraViewModel
 
     var body: some View {
-        Text("ControlPanelList")
+        VStack {
+            Text("ControlPanelList")
+        }
+        .frame(width: 300)
+        .toolbar {
+            ToolbarItem {
+                Button("", systemImage: "gear") {
+                    WindowManager.shared.showInspector(with: InspectorView(devices: devices, viewModel: viewModel, settings: settings, cameras: cameras))
+                }
+            }
+        }
+        .navigationTitle("IP Camera Control")
     }
 }
 

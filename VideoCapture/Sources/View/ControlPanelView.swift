@@ -44,17 +44,23 @@ struct ControlPanelView: View {
                 )
             }
             .frame(width: 40)
-            IconButton(icon: "gear", color: Color.white) {
-                InspectorWindowManager.shared.showInspector(with: InspectorView(devices: devices, viewModel: viewModel, settings: settings, cameras: cameras))
+            Group {
+                if showingTimerField {
+                    TimerTextField(hr: timer.hrBinding, min: timer.minBinding, sec: timer.secBinding)
+                        .disabled(timer.isRecording)
+                }
+                IconButton(icon: "clock.fill", color: Color.white) {
+                    showingTimerField.toggle()
+                }
             }
             .padding(.leading, 20)
             .padding(.trailing, 10)
-            if showingTimerField {
-                TimerTextField(hr: timer.hrBinding, min: timer.minBinding, sec: timer.secBinding)
-                    .disabled(timer.isRecording)
+            IconButton(icon: "gear", color: Color.white) {
+                WindowManager.shared.showInspector(with: InspectorView(devices: devices, viewModel: viewModel, settings: settings, cameras: cameras))
             }
-            IconButton(icon: "clock.fill", color: Color.white) {
-                showingTimerField.toggle()
+            .padding(.trailing, 10)
+            IconButton(icon: "list.bullet.rectangle", color: Color.white) {
+                WindowManager.shared.showController(with: ControlPanelList(devices: devices, viewModel: viewModel, settings: settings, cameras: cameras))
             }
         }
         .padding(EdgeInsets(top: 10, leading: 20, bottom: 10, trailing: 20))
