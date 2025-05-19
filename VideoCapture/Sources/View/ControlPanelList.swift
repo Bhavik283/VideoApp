@@ -13,6 +13,8 @@ struct ControlPanelList: View {
     @ObservedObject var settings: AVSettingViewModel
     @ObservedObject var cameras: IPCameraViewModel
 
+    @State var isRecordingAll: Bool = false
+
     var body: some View {
         VStack {
             ScrollView {
@@ -27,6 +29,7 @@ struct ControlPanelList: View {
                                 Spacer()
                             }
                             .padding(.horizontal)
+                            .padding(.vertical, 3)
                         }
                         Divider().padding(EdgeInsets(top: 0, leading: 5, bottom: 0, trailing: 5))
                     }
@@ -36,12 +39,32 @@ struct ControlPanelList: View {
         .frame(width: 400)
         .toolbar {
             ToolbarItem {
+                Button("", systemImage: isRecordingAll ? "square.fill" : "record.circle.fill") {
+                    isRecordingAll.toggle()
+                }
+            }
+            ToolbarItem {
                 Button("", systemImage: "gear") {
                     WindowManager.shared.showInspector(with: InspectorView(devices: devices, viewModel: viewModel, settings: settings, cameras: cameras))
                 }
             }
         }
         .navigationTitle("IP Camera Control")
+        .onChange(of: isRecordingAll) { _, _ in
+            if isRecordingAll {
+                for camera in viewModel.activeIPCameras {
+                    if let timer = viewModel.timers[camera.id] {
+                        timer.isRecording = true
+                    }
+                }
+            } else {
+                for camera in viewModel.activeIPCameras {
+                    if let timer = viewModel.timers[camera.id] {
+                        timer.isRecording = false
+                    }
+                }
+            }
+        }
     }
 }
 

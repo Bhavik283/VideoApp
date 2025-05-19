@@ -306,7 +306,7 @@ extension MainViewModel {
             let data = pipe.fileHandleForReading.readDataToEndOfFile()
             let output = String(data: data, encoding: .utf8) ?? ""
 
-            let knownFailureIndicators = ["invalid data", "no such file", "connection refused", "not found"]
+            let knownFailureIndicators = ["invalid data", "no such file", "connection refused", "not found", "failed: host is down"]
             let lowercasedOutput = output.lowercased()
 
             let matchedIndicator = knownFailureIndicators.first(where: {
@@ -333,6 +333,7 @@ extension MainViewModel {
         timers[id]?.reset()
         guard let ffmpegPath = Bundle.main.path(forResource: "ffmpeg", ofType: nil) else {
             showFailureAlert(message: "FFmpeg not found")
+            timers[id]?.isRecording = false
             return
         }
 
