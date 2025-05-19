@@ -260,11 +260,13 @@ extension MainViewModel {
         process.launchPath = ffplayPath
 
         // RTSP Transport
-        let transport: String
-        switch camera.rtp {
-        case .rtp: transport = "tcp"
-        case .mpegOverRtp, .mpegOverUdp: transport = "udp"
-        }
+        let isRTSP = camera.url.lowercased().hasPrefix("rtsp")
+        let transport: String = {
+            switch camera.rtp {
+            case .rtp: "tcp"
+            case .mpegOverRtp, .mpegOverUdp: "udp"
+            }
+        }()
 
         // Auth Injection
         var url = camera.url
@@ -276,9 +278,12 @@ extension MainViewModel {
         var args = [
             "-window_title", camera.name,
             "-fflags", "nobuffer",
-            "-flags", "low_delay",
-            "-rtsp_transport", transport
+            "-flags", "low_delay"
         ]
+
+        if isRTSP {
+            args += ["-rtsp_transport", transport]
+        }
 
         if camera.deinterfaceFeed {
             args += ["-vf", "yadif"]
@@ -349,18 +354,22 @@ extension MainViewModel {
             }
 
             // Determine transport type
-            let transport: String
-            switch camera.rtp {
-            case .rtp: transport = "tcp"
-            case .mpegOverRtp, .mpegOverUdp: transport = "udp"
-            }
-
+            let isRTSP = camera.url.lowercased().hasPrefix("rtsp")
+            let transport: String = {
+                switch camera.rtp {
+                case .rtp: "tcp"
+                case .mpegOverRtp, .mpegOverUdp: "udp"
+                }
+            }()
             // Begin building FFmpeg arguments
             var args: [String] = [
                 "-fflags", "nobuffer",
-                "-flags", "low_delay",
-                "-rtsp_transport", transport
+                "-flags", "low_delay"
             ]
+
+            if isRTSP {
+                args += ["-rtsp_transport", transport]
+            }
 
             if let sdp = camera.sdpFile, !sdp.isEmpty {
                 args += ["-protocol_whitelist", "file,rtp,udp", "-i", sdp]
