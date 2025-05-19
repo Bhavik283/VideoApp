@@ -19,8 +19,14 @@ struct SourcesView: View {
             set: { isOn in
                 if isOn {
                     viewModel.activeIPCameras.append(ipCamera)
+                    let id = ipCamera.id
+                    viewModel.checkAudioStream(for: ipCamera) { hasAudio in
+                        viewModel.timers[id]?.hasAudio = hasAudio
+                        viewModel.openIPFFplayWindow(camera: ipCamera, id: id)
+                    }
                 } else {
                     viewModel.activeIPCameras.removeAll { $0.id == ipCamera.id }
+                    viewModel.closeFFplayWindow(id: ipCamera.id)
                 }
             }
         )
@@ -46,7 +52,9 @@ struct SourcesView: View {
                             viewModel.useIPFeed = newID == "IP_FEED"
                             viewModel.activeCamera = devices.videoDevices.first(where: { $0.uniqueID == newID })
                             viewModel.activeIPCameras = []
-                            viewModel.selectedSettingsID = settings.AVSettingData.first?.id ?? viewModel.nilUUID
+                            if viewModel.selectedSettingsID == viewModel.nilUUID && newID != "IP_FEED" {
+                                viewModel.selectedSettingsID = settings.AVSettingData.first?.id ?? HD720.id
+                            }
                         }
                         VStack(alignment: .leading) {
                             ForEach(cameras.cameraList) { ipCamera in
@@ -77,7 +85,7 @@ struct SourcesView: View {
                 LabelView(label: "Settings") {
                     Picker("Settings", selection: $viewModel.selectedSettingsID) {
                         if viewModel.useIPFeed {
-                            Text("No Presets").tag(viewModel.nilUUID as UUID)
+                            Text("From Source").tag(viewModel.nilUUID as UUID)
                         }
                         ForEach(settings.AVSettingData) { setting in
                             Text(setting.name).tag(setting.id as UUID)
@@ -92,6 +100,7 @@ struct SourcesView: View {
                         }
                     }
                 }
+                .disabled(viewModel.useIPFeed)
                 Spacer()
             }
             .disabled(viewModel.isAVRecording)

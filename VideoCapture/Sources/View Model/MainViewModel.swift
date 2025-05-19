@@ -13,7 +13,7 @@ import Foundation
 final class MainViewModel: ObservableObject {
     @Published var activeCamera: AVCaptureDevice?
     @Published var activeMicrophone: AVCaptureDevice?
-    @Published var activeIPCameras: [IPCamera] = []
+    @Published var activeIPCameras: [IPCamera] = [] { didSet { syncTimersWithCameras() } }
 
     @Published var frameRate: Int32 = 30
 
@@ -22,9 +22,13 @@ final class MainViewModel: ObservableObject {
     @Published var selectedSettingsID: UUID
     @Published var useIPFeed: Bool = false
     @Published var timers: [UUID: TimerModel] = [:]
+
+    @Published var avTimer: TimerModel? = nil
     @Published var isAVRecording: Bool = false
 
     private var avProcess: Process?
+    private var ipProcesses: [UUID: Process] = [:]
+    private var ffplayProcesses: [UUID: Process] = [:]
     let nilUUID = UUID()
     var session = AVCaptureSession()
     private var lifecycleObserver = AppLifecycleObserver()
@@ -43,11 +47,26 @@ final class MainViewModel: ObservableObject {
         lifecycleObserver.onDidWake = { [weak self] in
             self?.handleSystemWake()
         }
+        lifecycleObserver.onAppTerminate = { [weak self] in
+            self?.stopAllRecordings()
+        }
         observeDeviceDisconnection()
     }
 
     func makeTime(id: UUID) -> String? {
         guard let timer = timers[id] else { return nil }
+        guard !timer.hrValue.isEmpty || !timer.minValue.isEmpty || !timer.secValue.isEmpty else { return nil }
+        if Int(timer.hrValue) == 0 && Int(timer.minValue) == 0 && Int(timer.secValue) == 0 {
+            return nil
+        }
+        let hour = timer.hrValue.isEmpty ? "00" : timer.hrValue
+        let minutes = timer.minValue.isEmpty ? "00" : timer.minValue
+        let seconds = timer.secValue.isEmpty ? "00" : timer.secValue
+        return "\(hour):\(minutes):\(seconds)"
+    }
+
+    func makeTime() -> String? {
+        guard let timer = avTimer else { return nil }
         guard !timer.hrValue.isEmpty || !timer.minValue.isEmpty || !timer.secValue.isEmpty else { return nil }
         if Int(timer.hrValue) == 0 && Int(timer.minValue) == 0 && Int(timer.secValue) == 0 {
             return nil
@@ -85,27 +104,44 @@ final class MainViewModel: ObservableObject {
     }
 
     private func handleDeviceDisconnected(_ device: AVCaptureDevice) {
-        if device.uniqueID == activeCamera?.uniqueID || device.uniqueID == activeMicrophone?.uniqueID {
+        if device.uniqueID == activeCamera?.uniqueID || device.uniqueID == activeMicrophone?.uniqueID, avTimer != nil {
             DispatchQueue.main.async { [weak self] in
                 guard let self = self else { return }
-                if let id = timers.first(where: { $0.value.isRecording })?.key {
-                    self.stopAVRecording(id: id)
+                if avTimer != nil {
+                    self.stopAVRecording()
                     showFailureAlert(message: "\(device.localizedName) disconnected. Recording stopped.")
                 }
+            }
+        }
+    }
+
+    private func syncTimersWithCameras() {
+        for camera in activeIPCameras {
+            if timers[camera.id] == nil {
+                timers[camera.id] = TimerModel()
+            }
+        }
+
+        let activeIDs = Set(activeIPCameras.map { $0.id })
+        for timerID in timers.keys {
+            if !activeIDs.contains(timerID) {
+                timers.removeValue(forKey: timerID)
             }
         }
     }
 }
 
 extension MainViewModel {
-    func startAVRecording(devices: AVViewModel, settings: AVSettingViewModel, id: UUID) {
-        timers[id]?.reset()
+    func startAVRecording(devices: AVViewModel, settings: AVSettingViewModel) {
+        avTimer?.reset()
         guard let ffmpegPath = Bundle.main.path(forResource: "ffmpeg", ofType: nil) else {
+            avTimer?.isRecording = false
             showFailureAlert(message: "FFmpeg not found")
             return
         }
 
         guard let camIndex = devices.indexForVideoDevice(activeCamera) else {
+            avTimer?.isRecording = false
             showFailureAlert(message: "Selected Camera not found")
             return
         }
@@ -113,7 +149,10 @@ extension MainViewModel {
         let micIndex = devices.indexForAudioDevice(activeMicrophone).map { "\($0)" } ?? ""
 
         showRecordingSavePanel { [weak self] url in
-            guard let self, let url else { return }
+            guard let self, let url else {
+                self?.avTimer?.isRecording = false
+                return
+            }
 
             let framerate = self.frameRate
 
@@ -136,12 +175,12 @@ extension MainViewModel {
             args.append("-i")
             args.append(input)
 
-            if let time = makeTime(id: id) {
+            if let time = makeTime() {
                 args.append("-t")
                 args.append(time)
             }
 
-            let settingArgument = self.applySettings(cameraIndex: "\(camIndex)", microphoneIndex: micIndex, setting: selectedSettings)
+            let settingArgument = applySettings(cameraIndex: "\(camIndex)", microphoneIndex: micIndex, setting: selectedSettings)
             args.append(contentsOf: settingArgument)
 
             args.append("-preset")
@@ -166,7 +205,7 @@ extension MainViewModel {
                     .filter { $0.lowercased().contains("error") }
 
                 DispatchQueue.main.async {
-                    self?.stopAVRecording(id: id)
+                    self?.stopAVRecording()
                     if !errorLines.isEmpty {
                         showFailureAlert(message: "FFmpeg failed to save or start the recording, please check the console for more information.")
                     }
@@ -175,13 +214,13 @@ extension MainViewModel {
 
             self.avProcess = task
             task.launch()
-            self.timers[id]?.start()
+            self.avTimer?.start()
             isAVRecording = true
         }
     }
 
-    func stopAVRecording(id: UUID) {
-        timers[id]?.stop()
+    func stopAVRecording() {
+        avTimer?.stop()
         avProcess?.terminate()
         avProcess = nil
         if isAVRecording {
@@ -189,115 +228,248 @@ extension MainViewModel {
         }
     }
 
-    func stopAllRecordings() {
-        for (id, _) in timers {
-            stopAVRecording(id: id)
-        }
+    func stopAllRecordingsForBackground() {
+        avTimer = nil
+        stopAVRecording()
         session.stopRunning()
     }
 
-    func applySettings(cameraIndex: String, microphoneIndex: String, setting: AVSettings?) -> [String] {
-        var arguments: [String] = []
-        guard let setting else { return arguments }
+    func stopAllRecordings() {
+        stopAVRecording()
+        avTimer = nil
 
-        // Video Settings
-        if !cameraIndex.isEmpty {
-            // Video Codec
-            let codec = setting.video.codec
-            arguments.append("-vcodec")
-            arguments.append(codec.value)
+        for id in Set(ipProcesses.keys).union(ffplayProcesses.keys) {
+            closeFFplayWindow(id: id)
+        }
 
-            // Video Scaling Mode
-            if let scale = setting.video.scalingMode?.rawValue, !scale.isEmpty {
-                arguments.append("-vf")
-                arguments.append(scale)
-            }
+        timers.removeAll()
+        ipProcesses.removeAll()
+        ffplayProcesses.removeAll()
+        session.stopRunning()
+    }
+}
 
-            // Video Bit Rate
-            let bitRate = setting.video.bitRate
-            if !bitRate.isEmpty, Int(bitRate) != nil {
-                arguments.append("-b:v")
-                arguments.append("\(bitRate)k")
-            }
+extension MainViewModel {
+    func openIPFFplayWindow(camera: IPCamera, id: UUID) {
+        guard let ffplayPath = Bundle.main.path(forResource: "ffplay", ofType: nil) else {
+            showFailureAlert(message: "ffplay not found in bundle.")
+            return
+        }
 
-            // Video Key Frame Interval
-            let keyInterval = setting.video.keyFrameInterval
-            if !keyInterval.isEmpty, Int(keyInterval) != nil {
-                arguments.append("-g")
-                arguments.append(keyInterval)
-            }
+        let process = Process()
+        process.launchPath = ffplayPath
 
-            // Video Profile (only for h264 or h265)
-            if let profile = setting.video.profile, profile != .none {
-                if codec == .h264 || codec == .h265 {
-                    arguments.append("-profile:v")
-                    arguments.append(profile.value)
-                    arguments.append("-level")
-                    arguments.append(profile.levelValue)
+        // RTSP Transport
+        let transport: String
+        switch camera.rtp {
+        case .rtp: transport = "tcp"
+        case .mpegOverRtp, .mpegOverUdp: transport = "udp"
+        }
+
+        // Auth Injection
+        var url = camera.url
+        if !camera.username.isEmpty, !camera.password.isEmpty {
+            url = url.replacingOccurrences(of: "://", with: "://\(camera.username):\(camera.password)@")
+        }
+
+        // Arguments
+        var args = [
+            "-window_title", camera.name,
+            "-fflags", "nobuffer",
+            "-flags", "low_delay",
+            "-rtsp_transport", transport
+        ]
+
+        if camera.deinterfaceFeed {
+            args += ["-vf", "yadif"]
+        }
+
+        // Keep the window open; let the user close manually
+        // args += ["-autoexit"]
+
+        if let sdp = camera.sdpFile, !sdp.isEmpty {
+            args += ["-protocol_whitelist", "file,rtp,udp", "-i", sdp]
+        } else {
+            args += ["-i", url]
+        }
+        print(args)
+
+        process.arguments = args
+
+        // Debug pipe
+        let pipe = Pipe()
+        process.standardOutput = pipe
+        process.standardError = pipe
+
+        // On termination, stop timer + cleanup
+        process.terminationHandler = { [weak self] process in
+            let data = pipe.fileHandleForReading.readDataToEndOfFile()
+            let output = String(data: data, encoding: .utf8) ?? ""
+
+            let knownFailureIndicators = ["invalid data", "no such file", "connection refused", "not found", "failed: host is down"]
+            let lowercasedOutput = output.lowercased()
+
+            let matchedIndicator = knownFailureIndicators.first(where: {
+                lowercasedOutput.contains($0)
+            })
+            print(output)
+
+            DispatchQueue.main.async {
+                self?.closeFFplayWindow(id: id)
+
+                if let reason = matchedIndicator {
+                    showFailureAlert(message: "FFplay failed: \(reason.capitalized). See console.")
+                } else if process.terminationStatus != 0 {
+                    showFailureAlert(message: "FFplay exited with status \(process.terminationStatus). See console.")
                 }
             }
         }
 
-        // Audio Settings
-        if !microphoneIndex.isEmpty {
-            // Audio Codec
-            let codec = setting.audio.codec
-            arguments.append("-acodec")
-            arguments.append(codec.rawValue)
+        process.launch()
+        ffplayProcesses[id] = process
+    }
 
-            // For Linear PCM codec (pcm_s16le)
-            if codec == .linearPCM {
-                arguments.append("-f")
-                arguments.append("s16le") // 16-bit signed little-endian
+    func startIPRecording(id: UUID, settings: AVSettingViewModel, camera: IPCamera) {
+        timers[id]?.reset()
+        guard let ffmpegPath = Bundle.main.path(forResource: "ffmpeg", ofType: nil) else {
+            showFailureAlert(message: "FFmpeg not found")
+            timers[id]?.isRecording = false
+            return
+        }
 
-                if let isBigEndian = setting.audio.isBigEndian, isBigEndian {
-                    arguments.append("-format_flags")
-                    arguments.append("+bigendian")
-                }
+        showRecordingSavePanel { [weak self] url in
+            guard let self, let url else {
+                self?.timers[id]?.isRecording = false
+                return
+            }
 
-                if let isFloat = setting.audio.isFloat, isFloat {
-                    arguments.append("-format_flags")
-                    arguments.append("+float")
+            var streamURL = camera.url
+            if !camera.username.isEmpty, !camera.password.isEmpty {
+                streamURL = streamURL.replacingOccurrences(of: "://", with: "://\(camera.username):\(camera.password)@")
+            }
+
+            // Determine transport type
+            let transport: String
+            switch camera.rtp {
+            case .rtp: transport = "tcp"
+            case .mpegOverRtp, .mpegOverUdp: transport = "udp"
+            }
+
+            // Begin building FFmpeg arguments
+            var args: [String] = [
+                "-fflags", "nobuffer",
+                "-flags", "low_delay",
+                "-rtsp_transport", transport
+            ]
+
+            if let sdp = camera.sdpFile, !sdp.isEmpty {
+                args += ["-protocol_whitelist", "file,rtp,udp", "-i", sdp]
+            } else {
+                args += ["-i", streamURL]
+            }
+
+            let selectedSettings = settings.AVSettingData.first(where: { $0.id == self.selectedSettingsID })
+            // Video Frame Size
+            if let frameSize = selectedSettings?.video.frameSize, !frameSize.isEmpty {
+                args.append("-video_size")
+                args.append(frameSize)
+            }
+
+            args += applySettings(setting: selectedSettings, hasAudio: timers[id]?.hasAudio ?? false)
+
+            if let time = makeTime(id: id) {
+                args.append("-t")
+                args.append(time)
+            }
+
+            args += ["-preset", "ultrafast", url.path]
+            print(args)
+
+            let task = Process()
+            task.launchPath = ffmpegPath
+            task.arguments = args
+
+            let pipe = Pipe()
+            task.standardOutput = pipe
+            task.standardError = pipe
+            task.terminationHandler = { [weak self] _ in
+                let data = pipe.fileHandleForReading.readDataToEndOfFile()
+                guard let output = String(data: data, encoding: .utf8) else { return }
+                print(output)
+
+                let errorLines = output
+                    .components(separatedBy: .newlines)
+                    .filter { $0.lowercased().contains("error") }
+
+                DispatchQueue.main.async {
+                    self?.stopIPRecording(id: id)
+                    if !errorLines.isEmpty {
+                        showFailureAlert(message: "FFmpeg failed to save or start the recording, please check the console for more information.")
+                    }
                 }
             }
 
-            // Audio Sample Rate
-            let sampleRate = setting.audio.sampleRate.rawValue
-            arguments.append("-ar")
-            arguments.append(sampleRate)
+            self.ipProcesses[id] = task
+            task.launch()
+            self.timers[id]?.start()
+        }
+    }
 
-            // Audio Bit Rate
-            let bitRate = setting.audio.bitRate.rawValue
-            arguments.append("-b:a")
-            arguments.append(bitRate)
+    func stopIPRecording(id: UUID) {
+        timers[id]?.stop()
+        ipProcesses[id]?.terminate()
+        ipProcesses.removeValue(forKey: id)
+    }
 
-            // Special handling for AAC codecs
-            if codec == .mpeg_4HighEfficiencyAAC {
-                switch setting.audio.bitRateMode {
-                case .perChannel:
-                    // Constant Bitrate mode - no extra flag needed, bitrate already set
-                    break
-                case .allChannels:
-                    arguments.append("-vbr")
-                    arguments.append("4") // Common VBR quality level for libfdk_aac
-                }
-            } else if codec == .mpeg_4LowComplexAAC {
-                arguments.append("-strict")
-                arguments.append("-2") // Enable experimental AAC encoder
-            }
+    func closeFFplayWindow(id: UUID) {
+        stopIPRecording(id: id)
+        timers.removeValue(forKey: id)
+        ffplayProcesses[id]?.terminate()
+        ffplayProcesses.removeValue(forKey: id)
+        activeIPCameras.removeAll { $0.id == id }
+    }
 
-            // Audio Channel Count
-            let channelCount = setting.audio.channels.rawValue
-            arguments.append("-ac")
-            arguments.append(channelCount)
+    func checkAudioStream(for camera: IPCamera, completion: @escaping (Bool) -> Void) {
+        guard let ffprobePath = Bundle.main.path(forResource: "ffprobe", ofType: nil) else {
+            print("ffprobe not found")
+            completion(false)
+            return
+        }
 
-            // Audio Channel Type - pan filter for stereo downmixing
-            if let panFilter = audioFilterForChannelType(setting.audio.channelType, channelCount: channelCount) {
-                arguments.append("-af")
-                arguments.append(panFilter)
+        var url = camera.url
+        if !camera.username.isEmpty, !camera.password.isEmpty {
+            url = url.replacingOccurrences(of: "://", with: "://\(camera.username):\(camera.password)@")
+        }
+
+        let process = Process()
+        process.launchPath = ffprobePath
+        let args = [
+            "-v", "error",
+            "-timeout", "10000000",
+            "-rw_timeout", "10000000",
+            "-select_streams", "a",
+            "-show_entries", "stream=codec_type",
+            "-of", "default=noprint_wrappers=1:nokey=1",
+            url
+        ]
+        print(args)
+        process.arguments = args
+
+        let pipe = Pipe()
+        process.standardOutput = pipe
+        process.standardError = pipe
+
+        process.terminationHandler = { _ in
+            let data = pipe.fileHandleForReading.readDataToEndOfFile()
+            let output = String(decoding: data, as: UTF8.self)
+            let hasAudio = output.contains("audio")
+            print(output)
+            print("audio: \(hasAudio)")
+            DispatchQueue.main.async {
+                completion(hasAudio)
             }
         }
 
-        return arguments
+        process.launch()
     }
 }

@@ -16,11 +16,9 @@ struct ControlPanelView: View {
     @ObservedObject var settings: AVSettingViewModel
     @ObservedObject var cameras: IPCameraViewModel
 
-    let id: UUID
     @StateObject private var timer: TimerModel
 
-    init(id: UUID, devices: AVViewModel, viewModel: MainViewModel, settings: AVSettingViewModel, cameras: IPCameraViewModel) {
-        self.id = id
+    init(devices: AVViewModel, viewModel: MainViewModel, settings: AVSettingViewModel, cameras: IPCameraViewModel) {
         _timer = StateObject(wrappedValue: TimerModel())
         self.devices = devices
         self.viewModel = viewModel
@@ -46,38 +44,43 @@ struct ControlPanelView: View {
                 )
             }
             .frame(width: 40)
-            IconButton(icon: "gear", color: Color.white) {
-                InspectorWindowManager.shared.showInspector(with: InspectorView(devices: devices, viewModel: viewModel, settings: settings, cameras: cameras))
+            Group {
+                if showingTimerField {
+                    TimerTextField(hr: timer.hrBinding, min: timer.minBinding, sec: timer.secBinding)
+                        .disabled(timer.isRecording)
+                }
+                IconButton(icon: "clock.fill", color: Color.white) {
+                    showingTimerField.toggle()
+                }
             }
             .padding(.leading, 20)
             .padding(.trailing, 10)
-            if showingTimerField {
-                TimerTextField(hr: timer.hrBinding, min: timer.minBinding, sec: timer.secBinding)
-                    .disabled(timer.isRecording)
+            IconButton(icon: "gear", color: Color.white) {
+                WindowManager.shared.showInspector(with: InspectorView(devices: devices, viewModel: viewModel, settings: settings, cameras: cameras))
             }
-            IconButton(icon: "clock.fill", color: Color.white) {
-                showingTimerField.toggle()
+            .padding(.trailing, 10)
+            IconButton(icon: "list.bullet.rectangle", color: Color.white) {
+                WindowManager.shared.showController(with: ControlPanelList(devices: devices, viewModel: viewModel, settings: settings, cameras: cameras))
             }
         }
-        .padding(20)
+        .padding(EdgeInsets(top: 10, leading: 20, bottom: 10, trailing: 20))
         .background(Color.gray)
         .clipShape(RoundedRectangle(cornerRadius: 4))
         .opacity(opacity)
         .onChange(of: timer.isRecording) { _, newValue in
             if newValue {
-                viewModel.startAVRecording(devices: devices, settings: settings, id: id)
+                viewModel.startAVRecording(devices: devices, settings: settings)
             } else {
-                viewModel.stopAVRecording(id: id)
+                viewModel.stopAVRecording()
             }
         }
         .onAppear {
-            if viewModel.timers[id] !== timer {
-                viewModel.timers[id] = timer
+            if viewModel.avTimer !== timer {
+                viewModel.avTimer = timer
             }
         }
         .onDisappear {
             timer.stop()
-            viewModel.timers[id] = nil
         }
         .onHover { hover in
             if hover {
