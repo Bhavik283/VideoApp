@@ -11,18 +11,18 @@ import SwiftUI
 struct VideoCaptureApp: App {
     @Environment(\.scenePhase) private var scenePhase
 
-    @ObservedObject var devices: AVViewModel
-    @ObservedObject var viewModel: MainViewModel
-    @ObservedObject var settings: AVSettingViewModel
-    @ObservedObject var cameras: IPCameraViewModel
+    @StateObject var devices: AVViewModel
+    @StateObject var viewModel: MainViewModel
+    @StateObject var settings: AVSettingViewModel
+    @StateObject var cameras: IPCameraViewModel
 
     init() {
         let deviceVM = AVViewModel()
         let settingVM = AVSettingViewModel()
-        devices = deviceVM
-        settings = settingVM
-        cameras = IPCameraViewModel()
-        viewModel = MainViewModel(activeCamera: deviceVM.videoDevices.first, activeMicrophone: deviceVM.audioDevices.first, selectedSettingsID: settingVM.AVSettingData.first?.id)
+        _devices = StateObject(wrappedValue: deviceVM)
+        _settings = StateObject(wrappedValue: settingVM)
+        _cameras = StateObject(wrappedValue: IPCameraViewModel())
+        _viewModel = StateObject(wrappedValue: MainViewModel(activeCamera: deviceVM.videoDevices.first, activeMicrophone: deviceVM.audioDevices.first, selectedSettingsID: settingVM.AVSettingData.first?.id))
     }
 
     var body: some Scene {
