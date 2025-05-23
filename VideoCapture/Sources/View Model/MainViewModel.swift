@@ -207,7 +207,7 @@ extension MainViewModel {
                 DispatchQueue.main.async {
                     self?.stopAVRecording()
                     if !errorLines.isEmpty {
-                        showFailureAlert(message: "FFmpeg failed to save or start the recording, please check the console for more information.")
+                        showFailureAlert(message: "FFmpeg failed to save or start the recording.", completeMessage: output)
                     }
                 }
             }
@@ -323,9 +323,9 @@ extension MainViewModel {
                 self?.closeFFplayWindow(id: id)
 
                 if let reason = matchedIndicator {
-                    showFailureAlert(message: "FFplay failed: \(reason.capitalized). See console.")
+                    showFailureAlert(message: "FFplay failed: \(reason.capitalized).", completeMessage: output)
                 } else if process.terminationStatus != 0 {
-                    showFailureAlert(message: "FFplay exited with status \(process.terminationStatus). See console.")
+                    showFailureAlert(message: "FFplay exited with status \(process.terminationStatus).", completeMessage: output)
                 }
             }
         }
@@ -413,7 +413,7 @@ extension MainViewModel {
                 DispatchQueue.main.async {
                     self?.stopIPRecording(id: id)
                     if !errorLines.isEmpty {
-                        showFailureAlert(message: "FFmpeg failed to save or start the recording, please check the console for more information.")
+                        showFailureAlert(message: "FFmpeg failed to save or start the recording.", completeMessage: output)
                     }
                 }
             }

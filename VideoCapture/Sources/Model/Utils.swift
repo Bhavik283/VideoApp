@@ -25,12 +25,29 @@ func pickSDPFile(completion: @escaping (URL?) -> Void) {
     }
 }
 
-func showFailureAlert(message: String) {
+func showFailureAlert(message: String, completeMessage: String? = nil) {
     let alert = NSAlert()
     alert.messageText = "Operation Failed"
-    alert.informativeText = message
     alert.alertStyle = .warning
+    alert.informativeText = message
     alert.addButton(withTitle: "OK")
+
+    if let completeMessage {
+        let scrollView = NSScrollView(frame: NSRect(x: 0, y: 0, width: 400, height: 150))
+        scrollView.hasVerticalScroller = true
+        scrollView.borderType = .bezelBorder
+        
+        let textView = NSTextView(frame: NSRect(x: 0, y: 0, width: 400, height: 150))
+        textView.string = completeMessage
+        textView.isEditable = false
+        textView.isSelectable = true
+        textView.drawsBackground = false
+        textView.textColor = .labelColor
+        
+        scrollView.documentView = textView
+        alert.accessoryView = scrollView
+    }
+
     alert.runModal()
 }
 
@@ -300,4 +317,40 @@ func applySettings(setting: AVSettings?, hasAudio: Bool) -> [String] {
     }
 
     return arguments
+}
+
+func shell(command: String) -> String? {
+    let commonBrewPaths = [
+        "/opt/homebrew/bin", // Apple Silicon
+        "/usr/local/bin" // Intel
+    ]
+    
+    for brewPath in commonBrewPaths {
+        let task = Process()
+        let pipe = Pipe()
+        task.standardOutput = pipe
+        task.standardError = pipe
+
+        var environment = ProcessInfo.processInfo.environment
+        let existingPath = environment["PATH"] ?? ""
+        environment["PATH"] = "\(brewPath):\(existingPath)"
+        task.environment = environment
+
+        task.arguments = ["-c", command]
+        task.launchPath = "/bin/zsh"
+        task.standardInput = nil
+
+        do {
+            try task.run()
+            task.waitUntilExit()
+            let data = pipe.fileHandleForReading.readDataToEndOfFile()
+            if let output = String(data: data, encoding: .utf8), !output.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                return output
+            }
+        } catch {
+            print("Shell error with PATH=\(brewPath): \(error)")
+        }
+    }
+
+    return nil
 }
