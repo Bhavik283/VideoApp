@@ -345,7 +345,7 @@ func shell(command: String) -> String? {
             task.waitUntilExit()
             let data = pipe.fileHandleForReading.readDataToEndOfFile()
             if let output = String(data: data, encoding: .utf8), !output.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                return output
+                return output.trimmingCharacters(in: .whitespacesAndNewlines)
             }
         } catch {
             print("Shell error with PATH=\(brewPath): \(error)")

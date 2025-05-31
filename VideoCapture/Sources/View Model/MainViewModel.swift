@@ -26,6 +26,10 @@ final class MainViewModel: ObservableObject {
     @Published var avTimer: TimerModel? = nil
     @Published var isAVRecording: Bool = false
 
+    var ffmpegPath: String?
+    var ffplayPath: String?
+    var ffprobePath: String?
+
     private var avProcess: Process?
     private var ipProcesses: [UUID: Process] = [:]
     private var ffplayProcesses: [UUID: Process] = [:]
@@ -51,6 +55,9 @@ final class MainViewModel: ObservableObject {
             self?.stopAllRecordings()
         }
         observeDeviceDisconnection()
+        ffmpegPath = shell(command: "which ffmpeg")
+        ffplayPath = shell(command: "which ffplay")
+        ffprobePath = shell(command: "which ffprobe")
     }
 
     func makeTime(id: UUID) -> String? {
@@ -134,7 +141,7 @@ final class MainViewModel: ObservableObject {
 extension MainViewModel {
     func startAVRecording(devices: AVViewModel, settings: AVSettingViewModel) {
         avTimer?.reset()
-        guard let ffmpegPath = Bundle.main.path(forResource: "ffmpeg", ofType: nil) else {
+        guard let ffmpegPath = self.ffmpegPath ?? Bundle.main.path(forResource: "ffmpeg", ofType: nil) else {
             avTimer?.isRecording = false
             showFailureAlert(message: "FFmpeg not found")
             return
@@ -251,7 +258,7 @@ extension MainViewModel {
 
 extension MainViewModel {
     func openIPFFplayWindow(camera: IPCamera, id: UUID) {
-        guard let ffplayPath = Bundle.main.path(forResource: "ffplay", ofType: nil) else {
+        guard let ffplayPath = self.ffplayPath ?? Bundle.main.path(forResource: "ffplay", ofType: nil) else {
             showFailureAlert(message: "ffplay not found in bundle.")
             return
         }
@@ -336,7 +343,7 @@ extension MainViewModel {
 
     func startIPRecording(id: UUID, settings: AVSettingViewModel, camera: IPCamera) {
         timers[id]?.reset()
-        guard let ffmpegPath = Bundle.main.path(forResource: "ffmpeg", ofType: nil) else {
+        guard let ffmpegPath = self.ffmpegPath ?? Bundle.main.path(forResource: "ffmpeg", ofType: nil) else {
             showFailureAlert(message: "FFmpeg not found")
             timers[id]?.isRecording = false
             return
@@ -439,7 +446,7 @@ extension MainViewModel {
     }
 
     func checkAudioStream(for camera: IPCamera, completion: @escaping (Bool) -> Void) {
-        guard let ffprobePath = Bundle.main.path(forResource: "ffprobe", ofType: nil) else {
+        guard let ffprobePath = self.ffprobePath ?? Bundle.main.path(forResource: "ffprobe", ofType: nil) else {
             print("ffprobe not found")
             completion(false)
             return

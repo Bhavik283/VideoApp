@@ -58,7 +58,7 @@ struct VideoPreview: NSViewRepresentable {
             if let camera = viewModel.activeCamera, let videoInput = try? AVCaptureDeviceInput(device: camera), session.canAddInput(videoInput) {
                 session.addInput(videoInput)
                 
-                configureCameraFrameRate(camera: camera, targetFPS: viewModel.frameRate)
+                configureCameraFrameRate(camera: camera, viewModel: viewModel)
             }
             
             if let mic = viewModel.activeMicrophone, let audioInput = try? AVCaptureDeviceInput(device: mic), session.canAddInput(audioInput) {
@@ -68,7 +68,8 @@ struct VideoPreview: NSViewRepresentable {
             session.commitConfiguration()
         }
         
-        func configureCameraFrameRate(camera: AVCaptureDevice, targetFPS: Int32) {
+        func configureCameraFrameRate(camera: AVCaptureDevice, viewModel: MainViewModel) {
+            let targetFPS = viewModel.frameRate
             do {
                 try camera.lockForConfiguration()
                 
@@ -88,6 +89,9 @@ struct VideoPreview: NSViewRepresentable {
                     camera.activeVideoMaxFrameDuration = duration
                     
                     showFailureAlert(message: "Selected frame rate (\(targetFPS) fps) is not supported by the camera. Defaulted to \(defaultFPS) fps.")
+                    DispatchQueue.main.async {
+                        viewModel.frameRate = defaultFPS
+                    }
                 }
                 
                 camera.unlockForConfiguration()
