@@ -36,14 +36,14 @@ func showFailureAlert(message: String, completeMessage: String? = nil) {
         let scrollView = NSScrollView(frame: NSRect(x: 0, y: 0, width: 400, height: 150))
         scrollView.hasVerticalScroller = true
         scrollView.borderType = .bezelBorder
-        
+
         let textView = NSTextView(frame: NSRect(x: 0, y: 0, width: 400, height: 150))
         textView.string = completeMessage
         textView.isEditable = false
         textView.isSelectable = true
         textView.drawsBackground = false
         textView.textColor = .labelColor
-        
+
         scrollView.documentView = textView
         alert.accessoryView = scrollView
     }
@@ -159,21 +159,24 @@ func applySettings(cameraIndex: String, microphoneIndex: String, setting: AVSett
         // Audio Codec
         let codec = setting.audio.codec
         arguments.append("-acodec")
-        arguments.append(codec.rawValue)
+        arguments.append(codec.value)
+
+        if let profile = codec.profile {
+            arguments.append("-profile:a")
+            arguments.append(profile)
+        }
 
         // For Linear PCM codec (pcm_s16le)
         if codec == .linearPCM {
             arguments.append("-f")
-            arguments.append("s16le") // 16-bit signed little-endian
 
-            if let isBigEndian = setting.audio.isBigEndian, isBigEndian {
-                arguments.append("-format_flags")
-                arguments.append("+bigendian")
-            }
+            let isFloat = setting.audio.isFloat ?? false
+            let isBigEndian = setting.audio.isBigEndian ?? false
 
-            if let isFloat = setting.audio.isFloat, isFloat {
-                arguments.append("-format_flags")
-                arguments.append("+float")
+            if isFloat {
+                arguments.append(isBigEndian ? "pcm_f32be" : "pcm_f32le")
+            } else {
+                arguments.append(isBigEndian ? "s16be" : "s16le")
             }
         }
 
@@ -261,21 +264,24 @@ func applySettings(setting: AVSettings?, hasAudio: Bool) -> [String] {
         // Audio Codec
         let codec = setting.audio.codec
         arguments.append("-acodec")
-        arguments.append(codec.rawValue)
+        arguments.append(codec.value)
+
+        if let profile = codec.profile {
+            arguments.append("-profile:a")
+            arguments.append(profile)
+        }
 
         // For Linear PCM codec (pcm_s16le)
         if codec == .linearPCM {
             arguments.append("-f")
-            arguments.append("s16le") // 16-bit signed little-endian
 
-            if let isBigEndian = setting.audio.isBigEndian, isBigEndian {
-                arguments.append("-format_flags")
-                arguments.append("+bigendian")
-            }
+            let isFloat = setting.audio.isFloat ?? false
+            let isBigEndian = setting.audio.isBigEndian ?? false
 
-            if let isFloat = setting.audio.isFloat, isFloat {
-                arguments.append("-format_flags")
-                arguments.append("+float")
+            if isFloat {
+                arguments.append(isBigEndian ? "pcm_f32be" : "pcm_f32le")
+            } else {
+                arguments.append(isBigEndian ? "s16be" : "s16le")
             }
         }
 
@@ -324,7 +330,7 @@ func shell(command: String) -> String? {
         "/opt/homebrew/bin", // Apple Silicon
         "/usr/local/bin" // Intel
     ]
-    
+
     for brewPath in commonBrewPaths {
         let task = Process()
         let pipe = Pipe()

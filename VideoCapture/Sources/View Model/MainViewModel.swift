@@ -40,9 +40,9 @@ final class MainViewModel: ObservableObject {
 
     init(activeCamera: AVCaptureDevice? = nil, activeMicrophone: AVCaptureDevice? = nil, selectedSettingsID: UUID? = nil) {
         self.activeCamera = activeCamera
-        self.selectedCameraID = activeCamera?.uniqueID ?? ""
+        selectedCameraID = activeCamera?.uniqueID ?? ""
         self.activeMicrophone = activeMicrophone
-        self.selectedMicID = activeMicrophone?.uniqueID ?? ""
+        selectedMicID = activeMicrophone?.uniqueID ?? ""
         self.selectedSettingsID = selectedSettingsID ?? nilUUID
 
         lifecycleObserver.onWillSleep = { [weak self] in
@@ -141,7 +141,7 @@ final class MainViewModel: ObservableObject {
 extension MainViewModel {
     func startAVRecording(devices: AVViewModel, settings: AVSettingViewModel) {
         avTimer?.reset()
-        guard let ffmpegPath = self.ffmpegPath ?? Bundle.main.path(forResource: "ffmpeg", ofType: nil) else {
+        guard let ffmpegPath = ffmpegPath ?? Bundle.main.path(forResource: "ffmpeg", ofType: nil) else {
             avTimer?.isRecording = false
             showFailureAlert(message: "FFmpeg not found")
             return
@@ -190,8 +190,9 @@ extension MainViewModel {
             let settingArgument = applySettings(cameraIndex: "\(camIndex)", microphoneIndex: micIndex, setting: selectedSettings)
             args.append(contentsOf: settingArgument)
 
-            args.append("-preset")
-            args.append("ultrafast")
+            args += [
+                "-preset", "ultrafast"
+            ]
             args.append(url.path)
             print(args)
 
@@ -258,7 +259,7 @@ extension MainViewModel {
 
 extension MainViewModel {
     func openIPFFplayWindow(camera: IPCamera, id: UUID) {
-        guard let ffplayPath = self.ffplayPath ?? Bundle.main.path(forResource: "ffplay", ofType: nil) else {
+        guard let ffplayPath = ffplayPath ?? Bundle.main.path(forResource: "ffplay", ofType: nil) else {
             showFailureAlert(message: "ffplay not found in bundle.")
             return
         }
@@ -284,8 +285,10 @@ extension MainViewModel {
         // Arguments
         var args = [
             "-window_title", camera.name,
-            "-fflags", "nobuffer",
-            "-flags", "low_delay"
+            "-fflags", "+flush_packets",
+            "-flags", "low_delay",
+            "-exitonkeydown",
+            "-exitonmousedown"
         ]
 
         if isRTSP {
@@ -343,7 +346,7 @@ extension MainViewModel {
 
     func startIPRecording(id: UUID, settings: AVSettingViewModel, camera: IPCamera) {
         timers[id]?.reset()
-        guard let ffmpegPath = self.ffmpegPath ?? Bundle.main.path(forResource: "ffmpeg", ofType: nil) else {
+        guard let ffmpegPath = ffmpegPath ?? Bundle.main.path(forResource: "ffmpeg", ofType: nil) else {
             showFailureAlert(message: "FFmpeg not found")
             timers[id]?.isRecording = false
             return
@@ -446,7 +449,7 @@ extension MainViewModel {
     }
 
     func checkAudioStream(for camera: IPCamera, completion: @escaping (Bool) -> Void) {
-        guard let ffprobePath = self.ffprobePath ?? Bundle.main.path(forResource: "ffprobe", ofType: nil) else {
+        guard let ffprobePath = ffprobePath ?? Bundle.main.path(forResource: "ffprobe", ofType: nil) else {
             print("ffprobe not found")
             completion(false)
             return

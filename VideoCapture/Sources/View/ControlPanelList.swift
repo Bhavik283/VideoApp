@@ -119,7 +119,7 @@ struct IPControlPanelView: View {
             if newValue {
                 viewModel.startIPRecording(id: id, settings: settings, camera: camera)
             } else {
-                viewModel.stopIPRecording(id: id)
+                viewModel.closeFFplayWindow(id: id)
             }
         }
     }

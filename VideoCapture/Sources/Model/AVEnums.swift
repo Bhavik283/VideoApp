@@ -145,18 +145,18 @@ enum ProfileLevel: String, Codable, CaseIterable {
 // MARK: - Audio Enums
 
 enum AudioCodec: String, Codable, CaseIterable {
-    case linearPCM = "pcm_s16le"
-    case ima4_1adpcm = "adpcm_ima_qt"
-    case mpeg_4LowComplexAAC = "aac"
-    case uLaw2_1 = "pcm_mulaw"
-    case aLaw2_1 = "pcm_alaw"
-    case appleLossless = "alac"
-    case mpeg_4HighEfficiencyAAC = "libfdk_aac"
-    case mpeg_4AACLowDelay = "aac_ld"
-    case mpeg_4AACEnchancedLowDelay = "aac_eld"
-    case mpeg_4AACEnchancedLowDelayWithSBR = "aac_eld_sbr"
-    case mpeg_4HighEfficiencyAACVersion2 = "he_aac_v2"
-    case iLBCnarrowBandSpeech = "ilbc"
+    case linearPCM
+    case ima4_1adpcm
+    case mpeg_4LowComplexAAC
+    case uLaw2_1
+    case aLaw2_1
+    case appleLossless
+    case mpeg_4HighEfficiencyAAC
+    case mpeg_4AACLowDelay
+    case mpeg_4AACEnchancedLowDelay
+    case mpeg_4AACEnchancedLowDelayWithSBR
+    case mpeg_4HighEfficiencyAACVersion2
+    case iLBCnarrowBandSpeech
 
     var displayName: String {
         switch self {
@@ -172,6 +172,34 @@ enum AudioCodec: String, Codable, CaseIterable {
         case .mpeg_4AACEnchancedLowDelayWithSBR: "MPEG-4 ELD with SBR"
         case .mpeg_4HighEfficiencyAACVersion2: "High Efficiency AAC v2"
         case .iLBCnarrowBandSpeech: "iLBC Narrow Band Speech"
+        }
+    }
+    
+    var value: String {
+        switch self {
+        case .linearPCM: "pcm_s16le"
+        case .ima4_1adpcm: "adpcm_ima_qt"
+        case .mpeg_4LowComplexAAC: "libfdk_aac"
+        case .uLaw2_1: "pcm_mulaw"
+        case .aLaw2_1: "pcm_alaw"
+        case .appleLossless: "alac"
+        case .mpeg_4HighEfficiencyAAC: "libfdk_aac"
+        case .mpeg_4AACLowDelay: "libfdk_aac"
+        case .mpeg_4AACEnchancedLowDelay: "libfdk_aac"
+        case .mpeg_4AACEnchancedLowDelayWithSBR: "libfdk_aac"
+        case .mpeg_4HighEfficiencyAACVersion2: "libfdk_aac"
+        case .iLBCnarrowBandSpeech: "ilbc"
+        }
+    }
+
+    var profile: String? {
+        switch self {
+        case .mpeg_4HighEfficiencyAAC: "aac_he"
+        case .mpeg_4AACLowDelay: "aac_ld"
+        case .mpeg_4AACEnchancedLowDelay: "aac_eld"
+        case .mpeg_4AACEnchancedLowDelayWithSBR: "aac_eld_sbr"
+        case .mpeg_4HighEfficiencyAACVersion2: "aac_he_v2"
+        default: nil
         }
     }
 }
