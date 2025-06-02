@@ -65,20 +65,22 @@ struct VideoPreview: NSViewRepresentable {
         }
 
         func updateSession(session: AVCaptureSession, viewModel: MainViewModel) {
-            session.beginConfiguration()
-            session.inputs.forEach { session.removeInput($0) }
-
-            if let camera = viewModel.activeCamera, let videoInput = try? AVCaptureDeviceInput(device: camera), session.canAddInput(videoInput) {
-                session.addInput(videoInput)
-
-                configureCameraFrameRate(camera: camera, viewModel: viewModel)
+            if !viewModel.isAVRecording {
+                session.beginConfiguration()
+                session.inputs.forEach { session.removeInput($0) }
+                
+                if let camera = viewModel.activeCamera, let videoInput = try? AVCaptureDeviceInput(device: camera), session.canAddInput(videoInput) {
+                    session.addInput(videoInput)
+                    
+                    configureCameraFrameRate(camera: camera, viewModel: viewModel)
+                }
+                
+                if let mic = viewModel.activeMicrophone, let audioInput = try? AVCaptureDeviceInput(device: mic), session.canAddInput(audioInput) {
+                    session.addInput(audioInput)
+                }
+                
+                session.commitConfiguration()
             }
-
-            if let mic = viewModel.activeMicrophone, let audioInput = try? AVCaptureDeviceInput(device: mic), session.canAddInput(audioInput) {
-                session.addInput(audioInput)
-            }
-
-            session.commitConfiguration()
         }
 
         func configureCameraFrameRate(camera: AVCaptureDevice, viewModel: MainViewModel) {

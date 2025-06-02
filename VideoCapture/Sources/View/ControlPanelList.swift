@@ -21,7 +21,7 @@ struct ControlPanelList: View {
                 ForEach(viewModel.activeIPCameras) { camera in
                     if let timer = viewModel.timers[camera.id] {
                         Section {
-                            IPControlPanelView(id: camera.id, viewModel: viewModel, settings: settings, timer: timer, camera: camera)
+                            IPControlPanelView(viewModel: viewModel, settings: settings, timer: timer, camera: camera)
                         } header: {
                             HStack {
                                 Text(camera.name)
@@ -74,12 +74,12 @@ struct IPControlPanelView: View {
     @ObservedObject var viewModel: MainViewModel
     @ObservedObject var settings: AVSettingViewModel
     @ObservedObject private var timer: TimerModel
-    let camera: IPCamera
 
+    let camera: IPCamera
     let id: UUID
 
-    init(id: UUID, viewModel: MainViewModel, settings: AVSettingViewModel, timer: TimerModel, camera: IPCamera) {
-        self.id = id
+    init(viewModel: MainViewModel, settings: AVSettingViewModel, timer: TimerModel, camera: IPCamera) {
+        self.id = camera.id
         self.timer = timer
         self.viewModel = viewModel
         self.settings = settings

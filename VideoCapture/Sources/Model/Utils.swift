@@ -26,29 +26,31 @@ func pickSDPFile(completion: @escaping (URL?) -> Void) {
 }
 
 func showFailureAlert(message: String, completeMessage: String? = nil) {
-    let alert = NSAlert()
-    alert.messageText = "Operation Failed"
-    alert.alertStyle = .warning
-    alert.informativeText = message
-    alert.addButton(withTitle: "OK")
+    DispatchQueue.main.async {
+        let alert = NSAlert()
+        alert.messageText = "Operation Failed"
+        alert.alertStyle = .warning
+        alert.informativeText = message
+        alert.addButton(withTitle: "OK")
 
-    if let completeMessage {
-        let scrollView = NSScrollView(frame: NSRect(x: 0, y: 0, width: 400, height: 150))
-        scrollView.hasVerticalScroller = true
-        scrollView.borderType = .bezelBorder
+        if let completeMessage {
+            let scrollView = NSScrollView(frame: NSRect(x: 0, y: 0, width: 400, height: 150))
+            scrollView.hasVerticalScroller = true
+            scrollView.borderType = .bezelBorder
 
-        let textView = NSTextView(frame: NSRect(x: 0, y: 0, width: 400, height: 150))
-        textView.string = completeMessage
-        textView.isEditable = false
-        textView.isSelectable = true
-        textView.drawsBackground = false
-        textView.textColor = .labelColor
+            let textView = NSTextView(frame: NSRect(x: 0, y: 0, width: 400, height: 150))
+            textView.string = completeMessage
+            textView.isEditable = false
+            textView.isSelectable = true
+            textView.drawsBackground = false
+            textView.textColor = .labelColor
 
-        scrollView.documentView = textView
-        alert.accessoryView = scrollView
+            scrollView.documentView = textView
+            alert.accessoryView = scrollView
+        }
+
+        alert.runModal()
     }
-
-    alert.runModal()
 }
 
 func currentTimestampString() -> String {

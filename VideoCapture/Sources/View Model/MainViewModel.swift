@@ -29,6 +29,7 @@ final class MainViewModel: ObservableObject {
     var ffmpegPath: String?
     var ffplayPath: String?
     var ffprobePath: String?
+    var openWindow: (() -> Void)? = nil
 
     private var avProcess: Process?
     private var ipProcesses: [UUID: Process] = [:]
@@ -162,14 +163,28 @@ extension MainViewModel {
             }
 
             let framerate = self.frameRate
+            let audioFiltersAV = "adeclick,afftdn=nt=w"
 
             let input = micIndex.isEmpty ? "\(camIndex)" : "\(camIndex):\(micIndex)"
+            let supportedRanges = activeCamera?.activeFormat.videoSupportedFrameRateRanges
+
+            let supportedFramerate: Int32 = {
+                guard let ranges = supportedRanges, let first = ranges.first else { return 30 }
+
+                let maxRate = first.maxFrameRate
+
+                if maxRate >= 60 { return 60 } // Common for newer devices
+                else if maxRate >= 30 { return 30 } // Most common
+                else if maxRate >= 24 { return 24 } // Cinema standard
+                else if maxRate >= 15 { return 15 } // Minimum reasonable rate
+                else { return Int32(floor(maxRate)) }
+            }()
 
             var args = [
                 "-f", "avfoundation",
                 "-fflags", "nobuffer",
                 "-flags", "low_delay",
-                "-framerate", "\(framerate)"
+                "-framerate", "\(supportedFramerate)"
             ]
 
             let selectedSettings = settings.AVSettingData.first(where: { $0.id == self.selectedSettingsID })
@@ -191,6 +206,8 @@ extension MainViewModel {
             args.append(contentsOf: settingArgument)
 
             args += [
+                "-vf", "fps=\(framerate)",
+                "-af", audioFiltersAV,
                 "-preset", "ultrafast"
             ]
             args.append(url.path)
@@ -286,10 +303,12 @@ extension MainViewModel {
         var args = [
             "-window_title", camera.name,
             "-fflags", "+flush_packets",
-            "-flags", "low_delay",
-            "-exitonkeydown",
-            "-exitonmousedown"
+            "-flags", "low_delay"
         ]
+
+        if isTesting {
+            args.append(contentsOf: ["-f", "lavfi"])
+        }
 
         if isRTSP {
             args += ["-rtsp_transport", transport]
@@ -317,7 +336,7 @@ extension MainViewModel {
         process.standardError = pipe
 
         // On termination, stop timer + cleanup
-        process.terminationHandler = { [weak self] process in
+        process.terminationHandler = { [weak self] _ in
             let data = pipe.fileHandleForReading.readDataToEndOfFile()
             let output = String(data: data, encoding: .utf8) ?? ""
 
@@ -334,8 +353,6 @@ extension MainViewModel {
 
                 if let reason = matchedIndicator {
                     showFailureAlert(message: "FFplay failed: \(reason.capitalized).", completeMessage: output)
-                } else if process.terminationStatus != 0 {
-                    showFailureAlert(message: "FFplay exited with status \(process.terminationStatus).", completeMessage: output)
                 }
             }
         }
@@ -363,6 +380,9 @@ extension MainViewModel {
                 streamURL = streamURL.replacingOccurrences(of: "://", with: "://\(camera.username):\(camera.password)@")
             }
 
+            let hasAudio = timers[id]?.hasAudio ?? false
+            let audioFiltersIP = "adeclick,afftdn=nt=w"
+
             // Determine transport type
             let isRTSP = camera.url.lowercased().hasPrefix("rtsp")
             let transport: String = {
@@ -376,6 +396,10 @@ extension MainViewModel {
                 "-fflags", "nobuffer",
                 "-flags", "low_delay"
             ]
+
+            if isTesting {
+                args.append(contentsOf: ["-f", "lavfi"])
+            }
 
             if isRTSP {
                 args += ["-rtsp_transport", transport]
@@ -394,11 +418,15 @@ extension MainViewModel {
                 args.append(frameSize)
             }
 
-            args += applySettings(setting: selectedSettings, hasAudio: timers[id]?.hasAudio ?? false)
+            args += applySettings(setting: selectedSettings, hasAudio: hasAudio)
 
             if let time = makeTime(id: id) {
                 args.append("-t")
                 args.append(time)
+            }
+            if hasAudio {
+                args.append("-af")
+                args.append(audioFiltersIP)
             }
 
             args += ["-preset", "ultrafast", url.path]
@@ -431,6 +459,16 @@ extension MainViewModel {
             self.ipProcesses[id] = task
             task.launch()
             self.timers[id]?.start()
+        }
+    }
+
+    func startIPCameraWindow(ipCamera: IPCamera) {
+        activeIPCameras.append(ipCamera)
+        let id = ipCamera.id
+        checkAudioStream(for: ipCamera) { [weak self] hasAudio in
+            guard let self = self else { return }
+            self.timers[id]?.hasAudio = hasAudio
+            self.openIPFFplayWindow(camera: ipCamera, id: id)
         }
     }
 

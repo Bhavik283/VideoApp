@@ -18,14 +18,8 @@ struct SourcesView: View {
             get: { viewModel.activeIPCameras.contains(ipCamera) },
             set: { isOn in
                 if isOn {
-                    viewModel.activeIPCameras.append(ipCamera)
-                    let id = ipCamera.id
-                    viewModel.checkAudioStream(for: ipCamera) { hasAudio in
-                        viewModel.timers[id]?.hasAudio = hasAudio
-                        viewModel.openIPFFplayWindow(camera: ipCamera, id: id)
-                    }
+                    viewModel.startIPCameraWindow(ipCamera: ipCamera)
                 } else {
-                    viewModel.activeIPCameras.removeAll { $0.id == ipCamera.id }
                     viewModel.closeFFplayWindow(id: ipCamera.id)
                 }
             }
@@ -54,6 +48,9 @@ struct SourcesView: View {
                             viewModel.activeIPCameras = []
                             if viewModel.selectedSettingsID == viewModel.nilUUID && newID != "IP_FEED" {
                                 viewModel.selectedSettingsID = settings.AVSettingData.first?.id ?? HD720.id
+                            }
+                            if newID != "IP_FEED" {
+                                viewModel.openWindow?()
                             }
                         }
                         VStack(alignment: .leading) {

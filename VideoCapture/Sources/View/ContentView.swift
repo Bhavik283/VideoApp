@@ -57,6 +57,6 @@ struct ContentView: View {
             }
             .frame(width: geometry.size.width, height: geometry.size.height)
         }
-        .navigationTitle("Capture")
+        .navigationTitle("Camera Video Preview")
     }
 }
