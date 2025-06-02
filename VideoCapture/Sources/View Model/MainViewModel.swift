@@ -8,7 +8,7 @@
 import AppKit
 import AVFoundation
 import Combine
-import Foundation
+import SwiftUI
 
 final class MainViewModel: ObservableObject {
     @Published var activeCamera: AVCaptureDevice?
@@ -23,7 +23,7 @@ final class MainViewModel: ObservableObject {
     @Published var useIPFeed: Bool = false
     @Published var timers: [UUID: TimerModel] = [:]
 
-    @Published var avTimer: TimerModel? = nil
+    @ObservedObject var avTimer: TimerModel
     @Published var isAVRecording: Bool = false
 
     var ffmpegPath: String?
@@ -45,6 +45,7 @@ final class MainViewModel: ObservableObject {
         self.activeMicrophone = activeMicrophone
         selectedMicID = activeMicrophone?.uniqueID ?? ""
         self.selectedSettingsID = selectedSettingsID ?? nilUUID
+        avTimer = TimerModel()
 
         lifecycleObserver.onWillSleep = { [weak self] in
             self?.handleSystemSleep()
@@ -74,7 +75,7 @@ final class MainViewModel: ObservableObject {
     }
 
     func makeTime() -> String? {
-        guard let timer = avTimer else { return nil }
+        let timer = avTimer
         guard !timer.hrValue.isEmpty || !timer.minValue.isEmpty || !timer.secValue.isEmpty else { return nil }
         if Int(timer.hrValue) == 0 && Int(timer.minValue) == 0 && Int(timer.secValue) == 0 {
             return nil
@@ -112,13 +113,11 @@ final class MainViewModel: ObservableObject {
     }
 
     private func handleDeviceDisconnected(_ device: AVCaptureDevice) {
-        if device.uniqueID == activeCamera?.uniqueID || device.uniqueID == activeMicrophone?.uniqueID, avTimer != nil {
+        if device.uniqueID == activeCamera?.uniqueID || device.uniqueID == activeMicrophone?.uniqueID {
             DispatchQueue.main.async { [weak self] in
                 guard let self = self else { return }
-                if avTimer != nil {
-                    self.stopAVRecording()
-                    showFailureAlert(message: "\(device.localizedName) disconnected. Recording stopped.")
-                }
+                self.stopAVRecording()
+                showFailureAlert(message: "\(device.localizedName) disconnected. Recording stopped.")
             }
         }
     }
@@ -141,15 +140,15 @@ final class MainViewModel: ObservableObject {
 
 extension MainViewModel {
     func startAVRecording(devices: AVViewModel, settings: AVSettingViewModel) {
-        avTimer?.reset()
+        avTimer.reset()
         guard let ffmpegPath = ffmpegPath ?? Bundle.main.path(forResource: "ffmpeg", ofType: nil) else {
-            avTimer?.isRecording = false
+            avTimer.isRecording = false
             showFailureAlert(message: "FFmpeg not found")
             return
         }
 
         guard let camIndex = devices.indexForVideoDevice(activeCamera) else {
-            avTimer?.isRecording = false
+            avTimer.isRecording = false
             showFailureAlert(message: "Selected Camera not found")
             return
         }
@@ -158,7 +157,7 @@ extension MainViewModel {
 
         showRecordingSavePanel { [weak self] url in
             guard let self, let url else {
-                self?.avTimer?.isRecording = false
+                self?.avTimer.isRecording = false
                 return
             }
 
@@ -239,13 +238,13 @@ extension MainViewModel {
 
             self.avProcess = task
             task.launch()
-            self.avTimer?.start()
+            self.avTimer.start()
             isAVRecording = true
         }
     }
 
     func stopAVRecording() {
-        avTimer?.stop()
+        avTimer.stop()
         avProcess?.terminate()
         avProcess = nil
         if isAVRecording {
@@ -254,14 +253,12 @@ extension MainViewModel {
     }
 
     func stopAllRecordingsForBackground() {
-        avTimer = nil
         stopAVRecording()
         session.stopRunning()
     }
 
     func stopAllRecordings() {
         stopAVRecording()
-        avTimer = nil
 
         for id in Set(ipProcesses.keys).union(ffplayProcesses.keys) {
             closeFFplayWindow(id: id)

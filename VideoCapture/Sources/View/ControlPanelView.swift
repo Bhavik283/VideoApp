@@ -16,10 +16,10 @@ struct ControlPanelView: View {
     @ObservedObject var settings: AVSettingViewModel
     @ObservedObject var cameras: IPCameraViewModel
 
-    @StateObject private var timer: TimerModel
+    @ObservedObject private var timer: TimerModel
 
     init(devices: AVViewModel, viewModel: MainViewModel, settings: AVSettingViewModel, cameras: IPCameraViewModel) {
-        _timer = StateObject(wrappedValue: TimerModel())
+        self.timer = viewModel.avTimer
         self.devices = devices
         self.viewModel = viewModel
         self.settings = settings
@@ -40,6 +40,11 @@ struct ControlPanelView: View {
                     color: Color.red,
                     action: {
                         timer.isRecording.toggle()
+                        if timer.isRecording {
+                            viewModel.startAVRecording(devices: devices, settings: settings)
+                        } else {
+                            viewModel.stopAVRecording()
+                        }
                     }
                 )
             }
@@ -67,18 +72,6 @@ struct ControlPanelView: View {
         .background(Color.gray)
         .clipShape(RoundedRectangle(cornerRadius: 4))
         .opacity(opacity)
-        .onChange(of: timer.isRecording) { _, newValue in
-            if newValue {
-                viewModel.startAVRecording(devices: devices, settings: settings)
-            } else {
-                viewModel.stopAVRecording()
-            }
-        }
-        .onAppear {
-            if viewModel.avTimer !== timer {
-                viewModel.avTimer = timer
-            }
-        }
         .onDisappear {
             timer.stop()
         }

@@ -9,7 +9,7 @@ import SwiftUI
 
 struct ContentView: View {
     @ObservedObject var devices: AVViewModel
-    @ObservedObject var viewModel: MainViewModel
+    @StateObject var viewModel: MainViewModel
     @ObservedObject var settings: AVSettingViewModel
     @ObservedObject var cameras: IPCameraViewModel
 
