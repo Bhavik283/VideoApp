@@ -31,6 +31,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             NSApp.activate(ignoringOtherApps: true)
         }
     }
+
+    @objc func closeMainWindow() {
+        mainWindow?.performClose(nil)
+    }
 }
 
 @main
@@ -65,6 +69,7 @@ struct VideoCaptureApp: App {
             }
             .onAppear {
                 viewModel.openWindow = appDelegate.showMainWindow
+                viewModel.closeWindow = appDelegate.closeMainWindow
             }
         }
         .onChange(of: scenePhase) { _, newPhase in

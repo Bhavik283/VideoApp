@@ -18,6 +18,7 @@ struct SourcesView: View {
             get: { viewModel.activeIPCameras.contains(ipCamera) },
             set: { isOn in
                 if isOn {
+                    WindowManager.shared.bringToFront(true)
                     viewModel.startIPCameraWindow(ipCamera: ipCamera)
                 } else {
                     viewModel.closeFFplayWindow(id: ipCamera.id)
@@ -45,13 +46,17 @@ struct SourcesView: View {
                         .onChange(of: viewModel.selectedCameraID) { _, newID in
                             viewModel.useIPFeed = newID == "IP_FEED"
                             viewModel.activeCamera = devices.videoDevices.first(where: { $0.uniqueID == newID })
-                            viewModel.activeIPCameras = []
                             if viewModel.selectedSettingsID == viewModel.nilUUID && newID != "IP_FEED" {
                                 viewModel.selectedSettingsID = settings.AVSettingData.first?.id ?? HD720.id
                             }
                             if newID != "IP_FEED" {
+                                viewModel.closeAllFFplayWindows()
                                 viewModel.openWindow?()
+                            } else {
+                                viewModel.closeWindow?()
                             }
+                            viewModel.activeIPCameras = []
+                            WindowManager.shared.bringToFront(newID == "IP_FEED")
                         }
                         VStack(alignment: .leading) {
                             ForEach(cameras.cameraList) { ipCamera in

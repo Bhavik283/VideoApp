@@ -14,7 +14,7 @@ struct VideoPreview: NSViewRepresentable {
     func makeCoordinator() -> Coordinator {
         let coordinator = Coordinator()
         coordinator.previewLayer = AVCaptureVideoPreviewLayer(session: viewModel.session)
-        coordinator.previewLayer.videoGravity = .resizeAspect
+        coordinator.previewLayer.videoGravity = .resizeAspectFill
         return coordinator
     }
 
@@ -49,10 +49,14 @@ struct VideoPreview: NSViewRepresentable {
 
         func scheduleSessionUpdate(viewModel: MainViewModel, completion: @escaping () -> Void) {
             updateSessionWorkItem?.cancel()
+
+            let camera = viewModel.activeCamera
+            let mic = viewModel.activeMicrophone
+
             updateSessionWorkItem = DispatchWorkItem { [weak self] in
-                guard let self = self else { return }
+                guard let self else { return }
                 self.sessionQueue.async {
-                    self.updateSession(session: viewModel.session, viewModel: viewModel)
+                    self.updateSession(session: viewModel.session, camera: camera, mic: mic, viewModel: viewModel)
                     DispatchQueue.main.async {
                         completion()
                     }
@@ -64,23 +68,22 @@ struct VideoPreview: NSViewRepresentable {
             }
         }
 
-        func updateSession(session: AVCaptureSession, viewModel: MainViewModel) {
-            if !viewModel.isAVRecording {
-                session.beginConfiguration()
-                session.inputs.forEach { session.removeInput($0) }
-                
-                if let camera = viewModel.activeCamera, let videoInput = try? AVCaptureDeviceInput(device: camera), session.canAddInput(videoInput) {
-                    session.addInput(videoInput)
-                    
-                    configureCameraFrameRate(camera: camera, viewModel: viewModel)
-                }
-                
-                if let mic = viewModel.activeMicrophone, let audioInput = try? AVCaptureDeviceInput(device: mic), session.canAddInput(audioInput) {
-                    session.addInput(audioInput)
-                }
-                
-                session.commitConfiguration()
+        func updateSession(session: AVCaptureSession, camera: AVCaptureDevice?, mic: AVCaptureDevice?, viewModel: MainViewModel) {
+            guard !viewModel.isAVRecording else { return }
+
+            session.beginConfiguration()
+            session.inputs.forEach { session.removeInput($0) }
+
+            if let camera, let videoInput = try? AVCaptureDeviceInput(device: camera), session.canAddInput(videoInput) {
+                session.addInput(videoInput)
+                configureCameraFrameRate(camera: camera, viewModel: viewModel)
             }
+
+            if let mic, let audioInput = try? AVCaptureDeviceInput(device: mic), session.canAddInput(audioInput) {
+                session.addInput(audioInput)
+            }
+
+            session.commitConfiguration()
         }
 
         func configureCameraFrameRate(camera: AVCaptureDevice, viewModel: MainViewModel) {

@@ -30,6 +30,7 @@ final class MainViewModel: ObservableObject {
     var ffplayPath: String?
     var ffprobePath: String?
     var openWindow: (() -> Void)? = nil
+    var closeWindow: (() -> Void)? = nil
 
     private var avProcess: Process?
     private var ipProcesses: [UUID: Process] = [:]
@@ -303,6 +304,8 @@ extension MainViewModel {
             "-flags", "low_delay"
         ]
 
+        args += ["-x", "640", "-y", "360"]
+
         if isTesting {
             args.append(contentsOf: ["-f", "lavfi"])
         }
@@ -354,109 +357,118 @@ extension MainViewModel {
             }
         }
 
+        pipe.fileHandleForReading.readabilityHandler = { handle in
+            _ = handle.availableData
+        }
+
         process.launch()
+        NSApp.activate(ignoringOtherApps: true)
         ffplayProcesses[id] = process
     }
 
     func startIPRecording(id: UUID, settings: AVSettingViewModel, camera: IPCamera) {
         timers[id]?.reset()
+        showRecordingSavePanel { [weak self] url in
+            self?.startIPCameraRecording(url: url?.path, id: id, settings: settings, camera: camera)
+        }
+    }
+
+    func startIPCameraRecording(url: String?, id: UUID, settings: AVSettingViewModel, camera: IPCamera) {
         guard let ffmpegPath = ffmpegPath ?? Bundle.main.path(forResource: "ffmpeg", ofType: nil) else {
             showFailureAlert(message: "FFmpeg not found")
             timers[id]?.isRecording = false
             return
         }
 
-        showRecordingSavePanel { [weak self] url in
-            guard let self, let url else {
-                self?.timers[id]?.isRecording = false
-                return
-            }
-
-            var streamURL = camera.url
-            if !camera.username.isEmpty, !camera.password.isEmpty {
-                streamURL = streamURL.replacingOccurrences(of: "://", with: "://\(camera.username):\(camera.password)@")
-            }
-
-            let hasAudio = timers[id]?.hasAudio ?? false
-            let audioFiltersIP = "adeclick,afftdn=nt=w"
-
-            // Determine transport type
-            let isRTSP = camera.url.lowercased().hasPrefix("rtsp")
-            let transport: String = {
-                switch camera.rtp {
-                case .rtp: "tcp"
-                case .mpegOverRtp, .mpegOverUdp: "udp"
-                }
-            }()
-            // Begin building FFmpeg arguments
-            var args: [String] = [
-                "-fflags", "nobuffer",
-                "-flags", "low_delay"
-            ]
-
-            if isTesting {
-                args.append(contentsOf: ["-f", "lavfi"])
-            }
-
-            if isRTSP {
-                args += ["-rtsp_transport", transport]
-            }
-
-            if let sdp = camera.sdpFile, !sdp.isEmpty {
-                args += ["-protocol_whitelist", "file,rtp,udp", "-i", sdp]
-            } else {
-                args += ["-i", streamURL]
-            }
-
-            let selectedSettings = settings.AVSettingData.first(where: { $0.id == self.selectedSettingsID })
-            // Video Frame Size
-            if let frameSize = selectedSettings?.video.frameSize, !frameSize.isEmpty {
-                args.append("-video_size")
-                args.append(frameSize)
-            }
-
-            args += applySettings(setting: selectedSettings, hasAudio: hasAudio)
-
-            if let time = makeTime(id: id) {
-                args.append("-t")
-                args.append(time)
-            }
-            if hasAudio {
-                args.append("-af")
-                args.append(audioFiltersIP)
-            }
-
-            args += ["-preset", "ultrafast", url.path]
-            print(args)
-
-            let task = Process()
-            task.launchPath = ffmpegPath
-            task.arguments = args
-
-            let pipe = Pipe()
-            task.standardOutput = pipe
-            task.standardError = pipe
-            task.terminationHandler = { [weak self] _ in
-                let data = pipe.fileHandleForReading.readDataToEndOfFile()
-                guard let output = String(data: data, encoding: .utf8) else { return }
-                print(output)
-
-                let errorLines = output
-                    .components(separatedBy: .newlines)
-                    .filter { $0.lowercased().contains("error") }
-
-                DispatchQueue.main.async {
-                    self?.stopIPRecording(id: id)
-                    if !errorLines.isEmpty {
-                        showFailureAlert(message: "FFmpeg failed to save or start the recording.", completeMessage: output)
-                    }
-                }
-            }
-
-            self.ipProcesses[id] = task
-            task.launch()
-            self.timers[id]?.start()
+        guard let url else {
+            timers[id]?.isRecording = false
+            return
         }
+
+        var streamURL = camera.url
+        if !camera.username.isEmpty, !camera.password.isEmpty {
+            streamURL = streamURL.replacingOccurrences(of: "://", with: "://\(camera.username):\(camera.password)@")
+        }
+
+        let hasAudio = timers[id]?.hasAudio ?? false
+        let audioFiltersIP = "adeclick,afftdn=nt=w"
+
+        // Determine transport type
+        let isRTSP = camera.url.lowercased().hasPrefix("rtsp")
+        let transport: String = {
+            switch camera.rtp {
+            case .rtp: "tcp"
+            case .mpegOverRtp, .mpegOverUdp: "udp"
+            }
+        }()
+        // Begin building FFmpeg arguments
+        var args: [String] = [
+            "-fflags", "nobuffer",
+            "-flags", "low_delay"
+        ]
+
+        if isTesting {
+            args.append(contentsOf: ["-f", "lavfi"])
+        }
+
+        if isRTSP {
+            args += ["-rtsp_transport", transport]
+        }
+
+        if let sdp = camera.sdpFile, !sdp.isEmpty {
+            args += ["-protocol_whitelist", "file,rtp,udp", "-i", sdp]
+        } else {
+            args += ["-i", streamURL]
+        }
+
+        let selectedSettings = settings.AVSettingData.first(where: { $0.id == self.selectedSettingsID })
+        // Video Frame Size
+        if let frameSize = selectedSettings?.video.frameSize, !frameSize.isEmpty {
+            args.append("-video_size")
+            args.append(frameSize)
+        }
+
+        args += applySettings(setting: selectedSettings, hasAudio: hasAudio)
+
+        if let time = makeTime(id: id) {
+            args.append("-t")
+            args.append(time)
+        }
+        if hasAudio {
+            args.append("-af")
+            args.append(audioFiltersIP)
+        }
+
+        args += ["-preset", "ultrafast", url]
+        print(args)
+
+        let task = Process()
+        task.launchPath = ffmpegPath
+        task.arguments = args
+
+        let pipe = Pipe()
+        task.standardOutput = pipe
+        task.standardError = pipe
+        task.terminationHandler = { [weak self] _ in
+            let data = pipe.fileHandleForReading.readDataToEndOfFile()
+            guard let output = String(data: data, encoding: .utf8) else { return }
+            print(output)
+
+            let errorLines = output
+                .components(separatedBy: .newlines)
+                .filter { $0.lowercased().contains("error") }
+
+            DispatchQueue.main.async {
+                self?.stopIPRecording(id: id)
+                if !errorLines.isEmpty {
+                    showFailureAlert(message: "FFmpeg failed to save or start the recording.", completeMessage: output)
+                }
+            }
+        }
+
+        ipProcesses[id] = task
+        task.launch()
+        timers[id]?.start()
     }
 
     func startIPCameraWindow(ipCamera: IPCamera) {
@@ -466,6 +478,27 @@ extension MainViewModel {
             guard let self = self else { return }
             self.timers[id]?.hasAudio = hasAudio
             self.openIPFFplayWindow(camera: ipCamera, id: id)
+        }
+    }
+
+    func startAllRecordings(settings: AVSettingViewModel) {
+        showRecordingSavePanel { [weak self] url in
+            guard let self, let url else { return }
+
+            let baseURL = url.deletingPathExtension()
+            let ext = url.pathExtension
+
+            for camera in activeIPCameras {
+                if let timer = timers[camera.id] {
+                    timer.isRecording = true
+                    timers[camera.id]?.reset()
+
+                    let cameraFileName = baseURL.lastPathComponent + "_\(camera.name)"
+                    let cameraURL = baseURL.deletingLastPathComponent().appendingPathComponent(cameraFileName).appendingPathExtension(ext)
+
+                    startIPCameraRecording(url: cameraURL.path, id: camera.id, settings: settings, camera: camera)
+                }
+            }
         }
     }
 
@@ -481,6 +514,10 @@ extension MainViewModel {
         ffplayProcesses[id]?.terminate()
         ffplayProcesses.removeValue(forKey: id)
         activeIPCameras.removeAll { $0.id == id }
+    }
+
+    func closeAllFFplayWindows() {
+        ffplayProcesses.keys.forEach(closeFFplayWindow)
     }
 
     func checkAudioStream(for camera: IPCamera, completion: @escaping (Bool) -> Void) {

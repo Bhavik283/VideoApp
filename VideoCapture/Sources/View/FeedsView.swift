@@ -63,7 +63,7 @@ struct FeedsView: View {
                     SDPView(path: $cameras.sdpFile)
                 }
                 Toggle(isOn: $cameras.deinterfaceFeed) {
-                    Text("DeInteraface Feed")
+                    Text("DeInterface Feed")
                 }
             }
             Spacer()

@@ -21,7 +21,7 @@ struct ControlPanelList: View {
                 ForEach(viewModel.activeIPCameras) { camera in
                     if let timer = viewModel.timers[camera.id] {
                         Section {
-                            IPControlPanelView(viewModel: viewModel, settings: settings, timer: timer, camera: camera)
+                            IPControlPanelView(isRecordingAll: $isRecordingAll, viewModel: viewModel, settings: settings, timer: timer, camera: camera)
                         } header: {
                             HStack {
                                 Text(camera.name)
@@ -52,11 +52,7 @@ struct ControlPanelList: View {
         .navigationTitle("IP Camera Control")
         .onChange(of: isRecordingAll) { _, _ in
             if isRecordingAll {
-                for camera in viewModel.activeIPCameras {
-                    if let timer = viewModel.timers[camera.id] {
-                        timer.isRecording = true
-                    }
-                }
+                viewModel.startAllRecordings(settings: settings)
             } else {
                 for camera in viewModel.activeIPCameras {
                     if let timer = viewModel.timers[camera.id] {
@@ -70,6 +66,7 @@ struct ControlPanelList: View {
 
 struct IPControlPanelView: View {
     @State var showingTimerField: Bool = false
+    @Binding var isRecordingAll: Bool
 
     @ObservedObject var viewModel: MainViewModel
     @ObservedObject var settings: AVSettingViewModel
@@ -78,7 +75,8 @@ struct IPControlPanelView: View {
     let camera: IPCamera
     let id: UUID
 
-    init(viewModel: MainViewModel, settings: AVSettingViewModel, timer: TimerModel, camera: IPCamera) {
+    init(isRecordingAll: Binding<Bool>, viewModel: MainViewModel, settings: AVSettingViewModel, timer: TimerModel, camera: IPCamera) {
+        self._isRecordingAll = isRecordingAll
         self.id = camera.id
         self.timer = timer
         self.viewModel = viewModel
@@ -116,9 +114,9 @@ struct IPControlPanelView: View {
         .padding(EdgeInsets(top: 10, leading: 20, bottom: 10, trailing: 20))
         .background(Color.gray)
         .onChange(of: timer.isRecording) { _, newValue in
-            if newValue {
+            if newValue && !isRecordingAll {
                 viewModel.startIPRecording(id: id, settings: settings, camera: camera)
-            } else {
+            } else if !newValue {
                 viewModel.closeFFplayWindow(id: id)
             }
         }
