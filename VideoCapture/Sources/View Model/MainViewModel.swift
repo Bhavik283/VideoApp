@@ -31,6 +31,8 @@ final class MainViewModel: ObservableObject {
     var ffprobePath: String?
     var openWindow: (() -> Void)? = nil
     var closeWindow: (() -> Void)? = nil
+    var resizeWindow: ((NSSize) -> Void)? = nil
+    let hasLibfdkAAC: Bool = isLibfdkAACPresent(in: shell(command: checkLibfdkCommand))
 
     private var avProcess: Process?
     private var ipProcesses: [UUID: Process] = [:]
@@ -77,8 +79,7 @@ final class MainViewModel: ObservableObject {
 
     func makeTime() -> String? {
         let timer = avTimer
-        guard !timer.hrValue.isEmpty || !timer.minValue.isEmpty || !timer.secValue.isEmpty else { return nil }
-        if Int(timer.hrValue) == 0 && Int(timer.minValue) == 0 && Int(timer.secValue) == 0 {
+        if !isValidTime(timer.hrValue) && !isValidTime(timer.minValue) && !isValidTime(timer.secValue) {
             return nil
         }
         let hour = timer.hrValue.isEmpty ? "00" : timer.hrValue
@@ -202,7 +203,7 @@ extension MainViewModel {
                 args.append(time)
             }
 
-            let settingArgument = applySettings(cameraIndex: "\(camIndex)", microphoneIndex: micIndex, setting: selectedSettings)
+            let settingArgument = applySettings(cameraIndex: "\(camIndex)", microphoneIndex: micIndex, setting: selectedSettings, hasLibfdkAAC: hasLibfdkAAC)
             args.append(contentsOf: settingArgument)
 
             args += [
@@ -273,7 +274,7 @@ extension MainViewModel {
 }
 
 extension MainViewModel {
-    func openIPFFplayWindow(camera: IPCamera, id: UUID) {
+    func openIPFFplayWindow(camera: IPCamera, id: UUID, aspect: CGFloat?) {
         guard let ffplayPath = ffplayPath ?? Bundle.main.path(forResource: "ffplay", ofType: nil) else {
             showFailureAlert(message: "ffplay not found in bundle.")
             return
@@ -304,7 +305,18 @@ extension MainViewModel {
             "-flags", "low_delay"
         ]
 
-        args += ["-x", "640", "-y", "360"]
+        let width = 640
+        var height = 360
+
+        if let aspect {
+            let rounded = CGFloat((aspect * 1000).rounded() / 1000)
+            let calculatedHeight = CGFloat(width) / aspect
+            height = Int(round(calculatedHeight))
+            let aspectString = String(format: "%.3f", rounded)
+            args += ["-aspect", aspectString]
+        }
+
+        args += ["-x", "\(width)", "-y", "\(height)"]
 
         if isTesting {
             args.append(contentsOf: ["-f", "lavfi"])
@@ -428,7 +440,7 @@ extension MainViewModel {
             args.append(frameSize)
         }
 
-        args += applySettings(setting: selectedSettings, hasAudio: hasAudio)
+        args += applySettings(setting: selectedSettings, hasAudio: hasAudio, hasLibfdkAAC: hasLibfdkAAC)
 
         if let time = makeTime(id: id) {
             args.append("-t")
@@ -474,10 +486,10 @@ extension MainViewModel {
     func startIPCameraWindow(ipCamera: IPCamera) {
         activeIPCameras.append(ipCamera)
         let id = ipCamera.id
-        checkAudioStream(for: ipCamera) { [weak self] hasAudio in
+        checkAudioStream(for: ipCamera) { [weak self] hasAudio, aspect in
             guard let self = self else { return }
             self.timers[id]?.hasAudio = hasAudio
-            self.openIPFFplayWindow(camera: ipCamera, id: id)
+            self.openIPFFplayWindow(camera: ipCamera, id: id, aspect: aspect)
         }
     }
 
@@ -520,10 +532,10 @@ extension MainViewModel {
         ffplayProcesses.keys.forEach(closeFFplayWindow)
     }
 
-    func checkAudioStream(for camera: IPCamera, completion: @escaping (Bool) -> Void) {
+    func checkAudioStream(for camera: IPCamera, completion: @escaping (Bool, CGFloat?) -> Void) {
         guard let ffprobePath = ffprobePath ?? Bundle.main.path(forResource: "ffprobe", ofType: nil) else {
             print("ffprobe not found")
-            completion(false)
+            completion(false, nil)
             return
         }
 
@@ -534,13 +546,18 @@ extension MainViewModel {
 
         let process = Process()
         process.launchPath = ffprobePath
-        let args = [
+        var args = [String]()
+
+        if isTesting {
+            args.append(contentsOf: ["-f", "lavfi"])
+        }
+
+        args += [
             "-v", "error",
             "-timeout", "10000000",
             "-rw_timeout", "10000000",
-            "-select_streams", "a",
-            "-show_entries", "stream=codec_type",
-            "-of", "default=noprint_wrappers=1:nokey=1",
+            "-show_streams",
+            "-of", "json",
             url
         ]
         print(args)
@@ -553,14 +570,39 @@ extension MainViewModel {
         process.terminationHandler = { _ in
             let data = pipe.fileHandleForReading.readDataToEndOfFile()
             let output = String(decoding: data, as: UTF8.self)
-            let hasAudio = output.contains("audio")
-            print(output)
-            print("audio: \(hasAudio)")
-            DispatchQueue.main.async {
-                completion(hasAudio)
+
+            // Parse JSON output
+            guard let jsonData = output.data(using: .utf8) else {
+                DispatchQueue.main.async { completion(false, nil) }
+                return
+            }
+
+            do {
+                if let json = try JSONSerialization.jsonObject(with: jsonData) as? [String: Any], let streams = json["streams"] as? [[String: Any]] {
+                    let hasAudio = streams.contains { stream in
+                        (stream["codec_type"] as? String) == "audio"
+                    }
+
+                    if let videoStream = streams.first(where: { ($0["codec_type"] as? String) == "video" }), let width = videoStream["width"] as? CGFloat, let height = videoStream["height"] as? CGFloat, height != 0 {
+                        let aspectRatio = width / height
+                        DispatchQueue.main.async {
+                            completion(hasAudio, aspectRatio)
+                        }
+                    } else {
+                        // No video stream found, but audio presence known
+                        completion(hasAudio, nil)
+                    }
+                } else {
+                    DispatchQueue.main.async {
+                        completion(false, nil)
+                    }
+                }
+            } catch {
+                DispatchQueue.main.async {
+                    completion(false, nil)
+                }
             }
         }
-
         process.launch()
     }
 }

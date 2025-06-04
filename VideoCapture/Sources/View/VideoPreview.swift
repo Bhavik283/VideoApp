@@ -10,6 +10,7 @@ import SwiftUI
 
 struct VideoPreview: NSViewRepresentable {
     @ObservedObject var viewModel: MainViewModel
+    @ObservedObject var settings: AVSettingViewModel
 
     func makeCoordinator() -> Coordinator {
         let coordinator = Coordinator()
@@ -25,7 +26,7 @@ struct VideoPreview: NSViewRepresentable {
         context.coordinator.previewLayer.autoresizingMask = [.layerWidthSizable, .layerHeightSizable]
         nsView.layer?.addSublayer(context.coordinator.previewLayer)
 
-        context.coordinator.scheduleSessionUpdate(viewModel: viewModel) {
+        context.coordinator.scheduleSessionUpdate(viewModel: viewModel, settings: settings) {
             if !viewModel.session.isRunning {
                 viewModel.session.startRunning()
             }
@@ -35,7 +36,7 @@ struct VideoPreview: NSViewRepresentable {
     }
 
     func updateNSView(_ nsView: NSView, context: Context) {
-        context.coordinator.scheduleSessionUpdate(viewModel: viewModel) {
+        context.coordinator.scheduleSessionUpdate(viewModel: viewModel, settings: settings) {
             if !viewModel.session.isRunning {
                 viewModel.session.startRunning()
             }
@@ -47,7 +48,7 @@ struct VideoPreview: NSViewRepresentable {
         var updateSessionWorkItem: DispatchWorkItem?
         let sessionQueue = DispatchQueue(label: "video.session.queue")
 
-        func scheduleSessionUpdate(viewModel: MainViewModel, completion: @escaping () -> Void) {
+        func scheduleSessionUpdate(viewModel: MainViewModel, settings: AVSettingViewModel, completion: @escaping () -> Void) {
             updateSessionWorkItem?.cancel()
 
             let camera = viewModel.activeCamera
@@ -56,9 +57,10 @@ struct VideoPreview: NSViewRepresentable {
             updateSessionWorkItem = DispatchWorkItem { [weak self] in
                 guard let self else { return }
                 self.sessionQueue.async {
-                    self.updateSession(session: viewModel.session, camera: camera, mic: mic, viewModel: viewModel)
+                    self.updateSession(session: viewModel.session, camera: camera, mic: mic, viewModel: viewModel, settings: settings)
                     DispatchQueue.main.async {
                         completion()
+                        self.previewLayer.setNeedsLayout()
                     }
                 }
             }
@@ -68,7 +70,7 @@ struct VideoPreview: NSViewRepresentable {
             }
         }
 
-        func updateSession(session: AVCaptureSession, camera: AVCaptureDevice?, mic: AVCaptureDevice?, viewModel: MainViewModel) {
+        func updateSession(session: AVCaptureSession, camera: AVCaptureDevice?, mic: AVCaptureDevice?, viewModel: MainViewModel, settings: AVSettingViewModel) {
             guard !viewModel.isAVRecording else { return }
 
             session.beginConfiguration()
@@ -76,7 +78,7 @@ struct VideoPreview: NSViewRepresentable {
 
             if let camera, let videoInput = try? AVCaptureDeviceInput(device: camera), session.canAddInput(videoInput) {
                 session.addInput(videoInput)
-                configureCameraFrameRate(camera: camera, viewModel: viewModel)
+                configureCameraFrameRate(camera: camera, viewModel: viewModel, settings: settings)
             }
 
             if let mic, let audioInput = try? AVCaptureDeviceInput(device: mic), session.canAddInput(audioInput) {
@@ -86,7 +88,7 @@ struct VideoPreview: NSViewRepresentable {
             session.commitConfiguration()
         }
 
-        func configureCameraFrameRate(camera: AVCaptureDevice, viewModel: MainViewModel) {
+        func configureCameraFrameRate(camera: AVCaptureDevice, viewModel: MainViewModel, settings: AVSettingViewModel) {
             let targetFPS = viewModel.frameRate
             do {
                 try camera.lockForConfiguration()
@@ -112,8 +114,32 @@ struct VideoPreview: NSViewRepresentable {
                         viewModel.frameRate = defaultFPS
                     }
                 }
+
+                configureCameraFormat(camera: camera, viewModel: viewModel, settings: settings)
             } catch {
                 showFailureAlert(message: "Failed to configure camera frame rate: \(error.localizedDescription)")
+            }
+        }
+
+        func configureCameraFormat(camera: AVCaptureDevice, viewModel: MainViewModel, settings: AVSettingViewModel) {
+            guard let activeSetting = settings.AVSettingData.first(where: { $0.id == viewModel.selectedSettingsID }), let sizeString = activeSetting.video.frameSize else { return }
+
+            let widthHeight = sizeString.split(separator: "x").compactMap { Int($0) }
+            guard widthHeight.count == 2 else { return }
+
+            let targetWidth = widthHeight[0]
+            let targetHeight = widthHeight[1]
+
+            let bestFormat = camera.formats.first(where: { format in
+                let desc = format.formatDescription
+                let dimensions = CMVideoFormatDescriptionGetDimensions(desc)
+                return dimensions.width == targetWidth && dimensions.height == targetHeight
+            })
+
+            if let format = bestFormat {
+                camera.activeFormat = format
+            } else {
+                showFailureAlert(message: "Requested resolution \(targetWidth)x\(targetHeight) not supported by the camera.")
             }
         }
     }

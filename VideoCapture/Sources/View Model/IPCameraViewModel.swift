@@ -20,6 +20,8 @@ class IPCameraViewModel: ObservableObject {
         }
     }
 
+    @Published var isCameraActive: [UUID: Bool] = [:]
+
     // Input fields bound to UI
     @Published var url: String = "" { didSet { if !isSyncing { updateActiveCamera() } } }
     @Published var username: String = "" { didSet { if !isSyncing { updateActiveCamera() } } }
@@ -97,5 +99,48 @@ class IPCameraViewModel: ObservableObject {
         if activeCamera?.id == updated.id {
             activeCamera = updated
         }
+    }
+
+    func checkCameraOnlineStatus(camera: IPCamera, path: String?) {
+        guard let ffprobePath = path ?? Bundle.main.path(forResource: "ffprobe", ofType: nil) else {
+            print("ffprobe not found")
+            return
+        }
+
+        var url = camera.url
+        if !camera.username.isEmpty, !camera.password.isEmpty {
+            url = url.replacingOccurrences(of: "://", with: "://\(camera.username):\(camera.password)@")
+        }
+
+        let process = Process()
+        process.launchPath = ffprobePath
+        var args = [String]()
+        if isTesting {
+            args += ["-f", "lavfi"]
+        }
+        args += [
+            "-v", "error",
+            "-timeout", "10000000",
+            "-rw_timeout", "10000000",
+            "-show_entries", "stream=codec_type",
+            "-of", "default=noprint_wrappers=1:nokey=1",
+            url
+        ]
+        process.arguments = args
+
+        let pipe = Pipe()
+        process.standardOutput = pipe
+        process.standardError = pipe
+
+        process.terminationHandler = { _ in
+            let data = pipe.fileHandleForReading.readDataToEndOfFile()
+            let output = String(decoding: data, as: UTF8.self)
+            let isOnline = output.contains("video") || output.contains("audio")
+            DispatchQueue.main.async { [weak self] in
+                self?.isCameraActive[camera.id] = isOnline
+            }
+        }
+
+        process.launch()
     }
 }

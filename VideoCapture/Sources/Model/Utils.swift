@@ -114,7 +114,7 @@ func audioFilterForChannelType(_ type: ChannelType, channelCount: String) -> Str
     }
 }
 
-func applySettings(cameraIndex: String, microphoneIndex: String, setting: AVSettings?) -> [String] {
+func applySettings(cameraIndex: String, microphoneIndex: String, setting: AVSettings?, hasLibfdkAAC: Bool) -> [String] {
     var arguments: [String] = []
     guard let setting else { return arguments }
 
@@ -161,9 +161,9 @@ func applySettings(cameraIndex: String, microphoneIndex: String, setting: AVSett
         // Audio Codec
         let codec = setting.audio.codec
         arguments.append("-acodec")
-        arguments.append(codec.value)
+        arguments.append(codec.value(hasLibfdkAAC))
 
-        if let profile = codec.profile {
+        if let profile = codec.profile(hasLibfdkAAC) {
             arguments.append("-profile:a")
             arguments.append(profile)
         }
@@ -222,7 +222,7 @@ func applySettings(cameraIndex: String, microphoneIndex: String, setting: AVSett
     return arguments
 }
 
-func applySettings(setting: AVSettings?, hasAudio: Bool) -> [String] {
+func applySettings(setting: AVSettings?, hasAudio: Bool, hasLibfdkAAC: Bool) -> [String] {
     var arguments: [String] = []
     guard let setting else { return arguments }
 
@@ -266,9 +266,9 @@ func applySettings(setting: AVSettings?, hasAudio: Bool) -> [String] {
         // Audio Codec
         let codec = setting.audio.codec
         arguments.append("-acodec")
-        arguments.append(codec.value)
+        arguments.append(codec.value(hasLibfdkAAC))
 
-        if let profile = codec.profile {
+        if let profile = codec.profile(hasLibfdkAAC) {
             arguments.append("-profile:a")
             arguments.append(profile)
         }
@@ -361,4 +361,15 @@ func shell(command: String) -> String? {
     }
 
     return nil
+}
+
+func isLibfdkAACPresent(in output: String?) -> Bool {
+    guard let output = output?.lowercased() else {
+        return false
+    }
+    return output.contains("libfdk_aac")
+}
+
+func isValidTime(_ timeValue: String) -> Bool {
+    return Int(timeValue) != 0 && !timeValue.isEmpty
 }

@@ -69,4 +69,5 @@ let K4 = AVSettings(
 )
 
 let frameRates: [Int32] = Array(15 ... 60)
+let checkLibfdkCommand = "ffmpeg -codecs | grep libfdk_aac"
 let isTesting = false

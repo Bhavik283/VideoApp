@@ -35,6 +35,20 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     @objc func closeMainWindow() {
         mainWindow?.performClose(nil)
     }
+
+    @objc func resizeWindow(_ size: NSSize) {
+        updateSize(window: mainWindow, size: size)
+        mainWindow?.aspectRatio = size
+    }
+    
+    func updateSize(window: NSWindow?, size: NSSize) {
+        guard let currentSize = window?.frame.size else { return }
+        let targetRatio = CGFloat(size.width) / CGFloat(size.height)
+        var newSize = currentSize
+        newSize.height = currentSize.width / targetRatio
+
+        window?.setContentSize(newSize)
+    }
 }
 
 @main
@@ -63,6 +77,9 @@ struct VideoCaptureApp: App {
                     if let window, appDelegate.mainWindow == nil {
                         appDelegate.mainWindow = window
                         window.title = "Camera Video Preview"
+                        let size = NSSize(width: 1280, height: 720)
+                        appDelegate.updateSize(window: window, size: size)
+                        window.aspectRatio = size
                     }
                 }
                 ContentView(devices: devices, viewModel: viewModel, settings: settings, cameras: cameras)
@@ -70,6 +87,7 @@ struct VideoCaptureApp: App {
             .onAppear {
                 viewModel.openWindow = appDelegate.showMainWindow
                 viewModel.closeWindow = appDelegate.closeMainWindow
+                viewModel.resizeWindow = appDelegate.resizeWindow
             }
         }
         .onChange(of: scenePhase) { _, newPhase in

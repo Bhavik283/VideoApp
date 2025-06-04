@@ -60,7 +60,13 @@ struct SourcesView: View {
                         }
                         VStack(alignment: .leading) {
                             ForEach(cameras.cameraList) { ipCamera in
-                                Toggle(ipCamera.name, isOn: toggleBinding(ipCamera: ipCamera))
+                                HStack {
+                                    Toggle(ipCamera.name, isOn: toggleBinding(ipCamera: ipCamera))
+                                    Spacer()
+                                    StatusButton(status: $cameras.isCameraActive[ipCamera.id]) {
+                                        cameras.checkCameraOnlineStatus(camera: ipCamera, path: viewModel.ffprobePath)
+                                    }
+                                }
                             }
                         }
                         .padding(.leading)
@@ -115,5 +121,22 @@ struct SourcesView: View {
         }
         .padding()
         .frame(maxWidth: .infinity, alignment: .topLeading)
+        .onChange(of: viewModel.selectedSettingsID) { _, id in
+            resize(id: id)
+        }
+        .onAppear {
+            for camera in cameras.cameraList {
+                cameras.checkCameraOnlineStatus(camera: camera, path: viewModel.ffprobePath)
+            }
+        }
+    }
+    
+    func resize(id: UUID?) {
+        if let settings = settings.AVSettingData.first(where: { $0.id == id }) {
+            let size: [Int] = settings.video.frameSize?.split(separator: "x").compactMap { Int($0) } ?? []
+            if size.count == 2 {
+                viewModel.resizeWindow?(NSSize(width: size[0], height: size[1]))
+            }
+        }
     }
 }

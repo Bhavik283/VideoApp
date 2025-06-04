@@ -19,7 +19,7 @@ struct ContentView: View {
     var body: some View {
         GeometryReader { geometry in
             ZStack(alignment: .bottom) {
-                VideoPreview(viewModel: viewModel)
+                VideoPreview(viewModel: viewModel, settings: settings)
 
                 ControlPanelView(
                     devices: devices,
