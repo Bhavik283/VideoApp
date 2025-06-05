@@ -18,9 +18,10 @@ struct SourcesView: View {
             get: { viewModel.activeIPCameras.contains(ipCamera) },
             set: { isOn in
                 if isOn {
-                    viewModel.activeIPCameras.append(ipCamera)
+                    WindowManager.shared.bringToFront(true)
+                    viewModel.startIPCameraWindow(ipCamera: ipCamera)
                 } else {
-                    viewModel.activeIPCameras.removeAll { $0.id == ipCamera.id }
+                    viewModel.closeFFplayWindow(id: ipCamera.id)
                 }
             }
         )
@@ -45,12 +46,27 @@ struct SourcesView: View {
                         .onChange(of: viewModel.selectedCameraID) { _, newID in
                             viewModel.useIPFeed = newID == "IP_FEED"
                             viewModel.activeCamera = devices.videoDevices.first(where: { $0.uniqueID == newID })
+                            if viewModel.selectedSettingsID == viewModel.nilUUID && newID != "IP_FEED" {
+                                viewModel.selectedSettingsID = settings.AVSettingData.first?.id ?? HD720.id
+                            }
+                            if newID != "IP_FEED" {
+                                viewModel.closeAllFFplayWindows()
+                                viewModel.openWindow?()
+                            } else {
+                                viewModel.closeWindow?()
+                            }
                             viewModel.activeIPCameras = []
-                            viewModel.selectedSettingsID = settings.AVSettingData.first?.id ?? viewModel.nilUUID
+                            WindowManager.shared.bringToFront(newID == "IP_FEED")
                         }
                         VStack(alignment: .leading) {
                             ForEach(cameras.cameraList) { ipCamera in
-                                Toggle(ipCamera.name, isOn: toggleBinding(ipCamera: ipCamera))
+                                HStack {
+                                    Toggle(ipCamera.name, isOn: toggleBinding(ipCamera: ipCamera))
+                                    Spacer()
+                                    StatusButton(status: $cameras.isCameraActive[ipCamera.id]) {
+                                        cameras.checkCameraOnlineStatus(camera: ipCamera, path: viewModel.ffprobePath)
+                                    }
+                                }
                             }
                         }
                         .padding(.leading)
@@ -77,7 +93,7 @@ struct SourcesView: View {
                 LabelView(label: "Settings") {
                     Picker("Settings", selection: $viewModel.selectedSettingsID) {
                         if viewModel.useIPFeed {
-                            Text("No Presets").tag(viewModel.nilUUID as UUID)
+                            Text("From Source").tag(viewModel.nilUUID as UUID)
                         }
                         ForEach(settings.AVSettingData) { setting in
                             Text(setting.name).tag(setting.id as UUID)
@@ -92,6 +108,7 @@ struct SourcesView: View {
                         }
                     }
                 }
+                .disabled(viewModel.useIPFeed)
                 Spacer()
             }
             .disabled(viewModel.isAVRecording)
@@ -104,5 +121,22 @@ struct SourcesView: View {
         }
         .padding()
         .frame(maxWidth: .infinity, alignment: .topLeading)
+        .onChange(of: viewModel.selectedSettingsID) { _, id in
+            resize(id: id)
+        }
+        .onAppear {
+            for camera in cameras.cameraList {
+                cameras.checkCameraOnlineStatus(camera: camera, path: viewModel.ffprobePath)
+            }
+        }
+    }
+    
+    func resize(id: UUID?) {
+        if let settings = settings.AVSettingData.first(where: { $0.id == id }) {
+            let size: [Int] = settings.video.frameSize?.split(separator: "x").compactMap { Int($0) } ?? []
+            if size.count == 2 {
+                viewModel.resizeWindow?(NSSize(width: size[0], height: size[1]))
+            }
+        }
     }
 }

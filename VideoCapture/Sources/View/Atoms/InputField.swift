@@ -60,14 +60,13 @@ struct TimerTextField: View {
     var body: some View {
         HStack(spacing: 2) {
             TimeTextField(title: "HH", text: $hr)
-                .frame(width: 45, height: 30)
+                .frame(width: 45)
             Text(":")
-                .font(.system(size: 24, weight: .bold, design: .default))
             TimeTextField(title: "MM", text: $min)
-                .frame(width: 45, height: 30)
+                .frame(width: 45)
             Text(":")
             TimeTextField(title: "SS", text: $sec)
-                .frame(width: 45, height: 30)
+                .frame(width: 45)
         }
     }
 }

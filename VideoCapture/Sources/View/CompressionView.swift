@@ -59,6 +59,9 @@ struct CompressionView: View {
             }
             Spacer()
         }
+        .onAppear {
+            settings.activeAVSetting = settings.AVSettingData.first
+        }
     }
 }
 
