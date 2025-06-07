@@ -10,9 +10,22 @@
 		3A283B3A2DD39603006DFED1 /* LiveCapture.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = LiveCapture.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		3AFFF1D32DECC020002EBC98 /* Exceptions for "VideoCapture" folder in "VideoCapture" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 3A283B392DD39603006DFED1 /* VideoCapture */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		3A283B3C2DD39603006DFED1 /* VideoCapture */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				3AFFF1D32DECC020002EBC98 /* Exceptions for "VideoCapture" folder in "VideoCapture" target */,
+			);
 			path = VideoCapture;
 			sourceTree = "<group>";
 		};
@@ -257,6 +270,7 @@
 				ENABLE_HARDENED_RUNTIME = NO;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = VideoCapture/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = LiveCapture;
 				INFOPLIST_KEY_NSCameraUsageDescription = "This app uses the camera for video preview and capture.";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
@@ -288,6 +302,7 @@
 				ENABLE_HARDENED_RUNTIME = NO;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = VideoCapture/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = LiveCapture;
 				INFOPLIST_KEY_NSCameraUsageDescription = "This app uses the camera for video preview and capture.";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";

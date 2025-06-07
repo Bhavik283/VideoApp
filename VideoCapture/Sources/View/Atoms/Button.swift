@@ -71,7 +71,7 @@ struct IconButton: View {
     let icon: String
     let color: Color
     let action: () -> Void
-    
+
     var body: some View {
         Button {
             action()
@@ -82,5 +82,32 @@ struct IconButton: View {
                 .frame(width: 20, height: 20)
         }
         .buttonStyle(.plain)
+    }
+}
+
+struct StatusButton: View {
+    @Binding var status: Bool?
+    let action: () -> Void
+
+    var body: some View {
+        Button {
+            status = nil
+            action()
+        } label: {
+            ZStack {
+                Circle()
+                    .fill(colorForCameraStatus(status))
+                    .frame(width: 15, height: 15)
+            }
+        }
+        .buttonStyle(.plain)
+    }
+
+    func colorForCameraStatus(_ status: Bool?) -> Color {
+        switch status {
+        case true: .green
+        case false: .red
+        default: .gray
+        }
     }
 }

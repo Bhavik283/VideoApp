@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>NSCameraUsageDescription</key>
+	<string>This app requires access to the camera for video capture.</string>
+
+	<key>NSMicrophoneUsageDescription</key>
+	<string>This app requires access to the microphone for audio capture.</string>
+
+	<key>NSCameraDeviceTypes</key>
+    <array>
+        <!-- Built-in cameras -->
+        <string>AVCaptureDeviceTypeBuiltInWideAngleCamera</string>
+        <string>AVCaptureDeviceTypeBuiltInUltraWideCamera</string>
+        <string>AVCaptureDeviceTypeBuiltInTelephotoCamera</string>
+        <string>AVCaptureDeviceTypeBuiltInDualCamera</string>
+        <string>AVCaptureDeviceTypeBuiltInDualWideCamera</string>
+        <string>AVCaptureDeviceTypeBuiltInTripleCamera</string>
+        <string>AVCaptureDeviceTypeBuiltInTrueDepthCamera</string>
+        <string>AVCaptureDeviceTypeBuiltInLiDARDepthCamera</string>
+        
+        <!-- External cameras -->
+        <string>AVCaptureDeviceTypeExternal</string>
+        <string>AVCaptureDeviceTypeContinuityCamera</string>
+        <string>AVCaptureDeviceTypeExternalUnknown</string>
+        
+        <!-- USB and other external devices -->
+        <string>AVCaptureDeviceTypeDeskViewCamera</string>
+    </array>
+
+	<key>NSCameraUseHighDynamicRangeCapture</key>
+	<true/>
+
+	<key>NSAppleEventsUsageDescription</key>
+	<string>This app uses Apple Events to communicate with system processes.</string>
+
+	<!-- Optional: System extensions support (for some external cameras) -->
+	<key>NSSystemExtensionUsageDescription</key>
+	<string>This app may need to load system extensions for external camera support.</string>
+
+	<!-- Optional: USB device access (some external cameras need this) -->
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>This app may access Bluetooth for wireless camera connections.</string>
+</dict>
+</plist>
